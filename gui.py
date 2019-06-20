@@ -847,6 +847,9 @@ class FindItem(QWidget):
 		return show_table
 
 	def checkout(self):
+		self.check_out = Checkout(self.username, self.order_id)
+		self.check_out.show()
+		self.close()
 		print("CHECKOUT")
 
 	def accept_back(self):
