@@ -17,7 +17,7 @@ class DbLogin():
 			connection = pymysql.connect(host= 'localhost',
                                          user='root',
                                          password= 'blackdog',
-                                         db= 'zoo',
+                                         db= 'store',
                                          charset='utf8mb4',
                                          cursorclass=pymysql.cursors.DictCursor)
 			global cursor
@@ -78,13 +78,13 @@ class Login(QWidget):
 		if len(self.username) >= 6 and len(self.password) >= 6:
 			username_query = "SQL QUERY CHECK FOR USERNAME"
 			print(username_query)
-			username_query = "select * from MEMBER where username = '{}';".format(self.username)
+			username_query = "select * from buyer where username = '{}';".format(self.username)
 			cursor.execute(username_query)			#check only if username exists. If it does not, open LoginMessage and say user DNE
 			user_row_count = cursor.rowcount
 			
 			password_query = "SQL QUERY CHECK FOR MATCHING PASSWORD"
 			print(password_query)
-			password_query = "select * from MEMBER where PASSWORD = '{}' and USERNAME = '{}';".format(self.password, self.username)
+			password_query = "select * from buyer where PASSWORD = '{}' and USERNAME = '{}';".format(self.password, self.username)
 
 			cursor.execute(password_query)
 			password_row_count = cursor.rowcount
@@ -127,7 +127,7 @@ class LoginMessage(QWidget):
         					  'fname_length': 'First name must be greater than 2 characters', 'lname_length': 'Last name must be greater than 2 characters',
         					  'existing_user': 'Username already exists. Please choose a different username.', 'invalid_user' : 'Please enter a valid username.', 
         					  'invalid_pass' : 'Please enter a valid password.', 'pass_mismatch': 'Passwords don\'t match.', 'pass_changed': 'Password changed.',
-        					  'invalid_email': 'Please enter a valid email address.'}
+        					  'invalid_email': 'Please enter a valid email address.', 'zip_code': 'Please enter a valid zip code.'}
 
         self.messagelabel = QLabel(error_message_dict[error_code])
         self.layout.addWidget(self.messagelabel)
@@ -189,7 +189,7 @@ class NewBuyer(QWidget):
 		super(NewBuyer,self).__init__()
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Register Buyer')
-
+		
 		self.first_name_field = QLineEdit()
 		self.username_field = QLineEdit()
 		self.password_field = QLineEdit()
@@ -212,78 +212,77 @@ class NewBuyer(QWidget):
 								  "Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah",
 								  "Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"])
 
+
+		self.field_label_dict = {'First Name: ': self.first_name_field, 'Last Name: ': self.last_name_field, 'Username: ': self.username_field,
+							'Phone: ': self.phone_field, 'Password: ': self.password_field, 'Confirm Password: ': self.confirm_pass_field,
+							'Email: ': self.email_field, 'State: ': self.state_field, 'Address: ': self.address_field, 'Zip Code: ': self.zip_field,
+							'City: ': self.city_field}
+
+		names = ['First Name: ', 'Last Name: ', 'Username: ', 'Phone: ', 'Password: ', 'Confirm Password: ', 'Email: ', 'State: ', 'Address: ', 'Zip Code: ', 'City: ']
+
+		field_dict = {}
+		grid = QGridLayout()
+		group_box = QGroupBox('Buyer Information')
+		vbox_layout = QVBoxLayout()
+
+		label_made = False
+		for i, name in enumerate(names):
+			field_dict[name] = QLabel(name)
+			row, col = divmod(i,2)
+			
+			if col == 0:
+				grid.addWidget(field_dict[name], row, col)
+
+			if col == 1:
+				col = col + 1
+				grid.addWidget(field_dict[name], row, col)
+
+			if col == 0 or col == 2:
+				grid.addWidget(self.field_label_dict[name], row, col + 1)
+
+		group_box.setLayout(grid)
+		vbox_layout.addWidget(group_box)
+
+		for key, val in self.field_label_dict.items():
+			if key != 'State: ':
+				val.textChanged.connect(self.on_text_changed)
+
 		self.register_button = QPushButton('Register')
 		self.cancel_button = QPushButton('    Cancel    ')
 		self.register_button.clicked.connect(self.accept)
 		self.cancel_button.clicked.connect(self.reject)
 		self.register_button.setEnabled(False)
+		self.register_button.resize(1,1)
+		vbox_layout.addWidget(self.register_button)
+		vbox_layout.addWidget(self.cancel_button)
 
-		group_box1 = QGroupBox('Buyer Information')
-		group_box2 = QGroupBox(' ')
+		self.setGeometry(740,200,500,100)
+		self.setLayout(vbox_layout)
 
-		self.layout1 = QFormLayout()
-		self.layout1.addRow(QLabel('First Name:'), self.first_name_field)
-		self.layout1.addRow(QLabel('Username:'), self.username_field)
-		self.layout1.addRow(QLabel('Password:'),self.password_field)
-		self.layout1.addRow(QLabel('Email: '), self.email_field)
-		self.layout1.addRow(QLabel('Address: '), self.address_field)
-		self.layout1.addRow(QLabel('City: '), self.city_field)
-
-		self.layout2 = QFormLayout()
-		self.layout2.addRow(QLabel('Last Name:'),self.last_name_field)
-		self.layout2.addRow(QLabel('Phone Number: '), self.phone_field)
-		self.layout2.addRow(QLabel('Confirm Password'), self.confirm_pass_field)
-		self.layout2.addRow(QLabel('State: '), self.state_field)
-		self.layout2.addRow(QLabel('Zip Code: '), self.zip_field)
-
-
-		#enable ok button only when all fields have been filled
-		self.first_name_field.textChanged.connect(self.on_text_changed)
-		self.username_field.textChanged.connect(self.on_text_changed)
-		self.password_field.textChanged.connect(self.on_text_changed)
-		self.email_field.textChanged.connect(self.on_text_changed)
-		self.address_field.textChanged.connect(self.on_text_changed)
-		self.city_field.textChanged.connect(self.on_text_changed)
-		self.last_name_field.textChanged.connect(self.on_text_changed)
-		self.phone_field.textChanged.connect(self.on_text_changed)
-		self.confirm_pass_field.textChanged.connect(self.on_text_changed)
-		# self.state_field.textChanged.connect(self.on_text_changed)
-		self.zip_field.textChanged.connect(self.on_text_changed)
-		
-		self.layout2.addWidget(self.register_button)
-		self.layout2.addWidget(self.cancel_button)
-
-		group_box1.setLayout(self.layout1)
-		group_box2.setLayout(self.layout2)
-
-		hbox_layout = QHBoxLayout()
-
-		hbox_layout.addWidget(group_box1)
-		hbox_layout.addWidget(group_box2)
-
-
-		self.setLayout(hbox_layout)
-		self.first_name_field.setFocus()
 
 	def on_text_changed(self):
-		fields = [bool(self.first_name_field.text()), bool(self.username_field.text()), bool(self.password_field.text()), bool(self.email_field.text()), bool(self.address_field.text()), bool(self.city_field.text()), bool(self.last_name_field.text()), bool(self.phone_field.text()), bool(self.confirm_pass_field.text()), bool(self.zip_field.text())]
+		fields = [bool(self.field_label_dict[field].text()) for field in self.field_label_dict if field != 'State: ']
 		self.register_button.setEnabled(sum(fields) == len(fields))
 
-
 	def accept(self):
-		self.username = self.username_field.text()
-		self.password = self.password_field.text()
-		self.first_name = self.first_name_field.text()
-		self.last_name = self.last_name_field.text()
-
-		self.user_type = 'member'
+		self.username = self.field_label_dict['Username: '].text()
+		self.password = self.field_label_dict['Password: '].text()
+		self.confirm_pass = self.field_label_dict['Confirm Password: '].text()
+		self.fname = self.field_label_dict['First Name: '].text()
+		self.lname = self.field_label_dict['Last Name: '].text()
+		self.email = self.field_label_dict['Email: '].text()
+		self.address = self.field_label_dict['Address: '].text()
+		self.state = self.field_label_dict['State: '].currentText()
+		self.city = self.field_label_dict['City: '].text()
+		self.phone = self.field_label_dict['Phone: '].text()
+		self.zip = self.field_label_dict['Zip Code: '].text()
 
 		try:
-			if len(self.first_name) < 2:
+			if len(self.fname) < 2:
 				self.error_window = LoginMessage('fname_length')
 				self.error_window.show()
 				return
-			elif len(self.last_name) < 2:
+			elif len(self.lname) < 2:
 				self.error_window = LoginMessage('lname_length')
 				self.error_window.show()
 				return
@@ -295,8 +294,12 @@ class NewBuyer(QWidget):
 				self.error_window = LoginMessage('pass_length')
 				self.error_window.show()
 				return
-			elif self.password_field.text() != self.confirm_pass_field.text():
+			elif self.password != self.confirm_pass:
 				self.error_window = LoginMessage('pass_mismatch')
+				self.error_window.show()
+				return
+			elif len(self.zip) != 5 or not self.zip.isdigit():
+				self.error_window = LoginMessage('zip_code')
 				self.error_window.show()
 				return
 			elif not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', self.email_field.text())):
@@ -304,11 +307,8 @@ class NewBuyer(QWidget):
 				self.error_window.show()
 				return
 
-
-			account_type = 'member'
-
 			cursor = connection.cursor()
-			check_query = "select * from {} where username = '{}'".format(account_type, self.username)  #check to see if username already exists
+			check_query = "select * from buyer where username = '{}'".format(self.username)  #check to see if username already exists
 			cursor.execute(check_query)
 
 			existing_user_row_count = cursor.rowcount
@@ -316,16 +316,15 @@ class NewBuyer(QWidget):
 				self.error_window = LoginMessage('existing_user')
 				self.error_window.show()
 				return
-			if account_type == 'member':
-				add_info = "insert into {} values ('{}', ('{}'), '{}', '{}');".format(account_type, self.username, self.password, self.first_name, self.last_name)
-			elif account_type == 'employee':
-				add_info = "insert into {} values ('{}', ('{}'), '{}', '{}', '{}');".format(account_type, self.username, self.password, self.first_name, self.last_name, self.cb_job_function.currentText())
 
+			add_info = "insert into buyer values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}');".format(self.fname, self.lname, self.username, self.phone, self.password, self.email, self.state, self.address, self.zip, self.city)
+						
 			cursor.execute(add_info)
 			connection.commit()
 			self.loginwindow = Login()
 			self.loginwindow.show()
 			self.close()
+			print('DONE')
 
 		except Exception as e:
 			print(f"Fuck")
@@ -1018,7 +1017,6 @@ class Cart(QWidget):
 
 		print("Delete Item")
 		
-
 class BuyerAcctInfo(QWidget):
 	def __init__(self, username):
 		super(BuyerAcctInfo, self).__init__()
@@ -1027,12 +1025,12 @@ class BuyerAcctInfo(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Account Information')
 
-		fname_query = "select first_name, last_name from MEMBER where username = '{}'".format(self.username)
+		fname_query = "select fname, lname from buyer where username = '{}'".format(self.username)
 		cursor = connection.cursor()
 		cursor.execute(fname_query)
 		name = cursor.fetchone()
 
-		self.first_name_field = QLineEdit(name['first_name'])
+		self.first_name_field = QLineEdit(name['fname'])
 		self.username_field = QLineEdit(self.username)
 		self.preferred_store = QLineEdit()
 		self.store_address = QLineEdit()
@@ -1041,7 +1039,7 @@ class BuyerAcctInfo(QWidget):
 		self.address_field = QLineEdit()
 		self.city_field = QLineEdit()
 
-		self.last_name_field = QLineEdit(name['last_name'])
+		self.last_name_field = QLineEdit(name['lname'])
 		self.phone_field = QLineEdit()
 		self.state_field = QLineEdit()
 		self.zip_field = QLineEdit()
