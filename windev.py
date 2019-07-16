@@ -9,6 +9,37 @@ from PyQt5.QtGui import *
 # from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication
 from PyQt5.QtGui import QIcon
 import re
+global user_min_len
+user_min_len = 1
+
+global pass_min_len
+pass_min_len = 1
+
+class LoginMessage(QWidget):
+    def __init__(self, error_code):
+        super(LoginMessage, self).__init__()
+        self.setWindowIcon(QIcon('groceries.png'))
+        self.error_code = error_code
+        self.setWindowTitle('Login Message')
+        self.layout = QVBoxLayout()
+
+        error_message_dict = {'wrong_password':'Wrong password. Please try again.', 'wrong_user':'The username you have entered does not match any accounts.',
+        					  'user_length': 'Username must be between 3 and 18 characters.', 'pass_length': 'Password must be between 6 and 18 characters',
+        					  'first_name_length': 'First name must be greater than 2 characters', 'last_name_length': 'Last name must be greater than 2 characters',
+        					  'existing_user': 'Username already exists. Please choose a different username.', 'invalid_user' : 'Please enter a valid username.', 
+        					  'invalid_pass' : 'Please enter a valid password.', 'pass_mismatch': 'Passwords don\'t match.', 'pass_changed': 'Password changed.',
+        					  'invalid_email': 'Please enter a valid email address.', 'zip_code': 'Please enter a valid zip code.', 'phone': 'Please enter a valid phone number.',
+        					  'confirmation_code' : 'Incorrect confirmation code.'}
+
+        self.messagelabel = QLabel(error_message_dict[error_code])
+        self.layout.addWidget(self.messagelabel)
+
+        self.ok = QPushButton('OK')
+        self.ok.clicked.connect(self.close)
+        self.layout.addWidget(self.ok)
+
+        self.setGeometry(600,375,300,100)
+        self.setLayout(self.layout) #displays login error screen. incorrect pass/user, etc
 
 
 class DbLogin():
@@ -23,7 +54,7 @@ class DbLogin():
                                          cursorclass=pymysql.cursors.DictCursor)
 			global cursor
 			cursor = connection.cursor()
-			self.loginwindow = Assigments('deliverer')
+			self.loginwindow = NewManager()
 			self.loginwindow.show()
 
 		except Exception as e:
@@ -31,151 +62,165 @@ class DbLogin():
 			print(e)
 			sys.exit()
 
-class Assigments(QWidget):
-	def __init__(self, username):
-		super(Assigments, self).__init__()
-		self.username = username
-		self.setWindowTitle('Assigments')
-
-		self.query  = "select fname, lname from user;"
-		self.tabledata = tablemaker(self.query)
-		column_headers = self.tabledata[0]
-		rows = self.tabledata[1]
-
-		self.table = QTableWidget(len(rows), len(rows[0]), self)
-		self.table.horizontalHeader().setStretchLastSection(True)
-		self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-		self.table.verticalHeader().setStretchLastSection(True)
-		self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
-		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
-		self.view_assn_details = QPushButton('View Assigment Details')
-
-		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
-		self.view_assn_details.clicked.connect(self.accept_view_assn_details)
-
-		button_group_box = QGroupBox()
-		hbox_layout = QHBoxLayout()
-
-		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
-		hbox_layout.addWidget(self.view_assn_details)
-
-		button_group_box.setLayout(hbox_layout)
-
-		self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-		self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-
-		self.table.clicked.connect(self.rowclicked)
-
-		self.table.setHorizontalHeaderLabels(column_headers)
-		for i, row in enumerate(rows):
-		    for j, field in enumerate(row):
-		        item = QTableWidgetItem(field)
-		        self.table.setItem(i, j, item)
-
-		vbox_layout = QVBoxLayout()
-		vbox_layout.addWidget(self.table)
-		vbox_layout.addWidget(button_group_box)
-
-		self.view_assn_details.setEnabled(False)
-		self.setLayout(vbox_layout)
-		self.setGeometry(740,200,500,200)
-
-	def rowclicked(self):
-		self.view_assn_details.setEnabled(True)
-
-	def accept_back(self):
-		self.buyer_func = BuyerFunctionality(self.username)
-		self.buyer_func.show()
-		self.close()
-
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print("NEXT")
-
-	def accept_view_assn_details(self):
-		indexes = self.table.selectionModel().selectedRows()
-		for index in indexes:
-			# assignment_id = [self.table.item(index.row(),i).text() for i in range(self.table.columnCount())][SOMETHING]
-			pass
-		assignment_id = 123
-
-		self.assignment_details = AssignmentDetails(self.username, assignment_id)
-		self.assignment_details.show()
-		self.close()
-
-class AssignmentDetails(QWidget):
-	def __init__(self, username, assignment_id):
-		super(AssignmentDetails, self).__init__()
-		self.setWindowTitle('Assignment Details')
+class NewManager(QWidget):
+	def __init__(self):
+		super(NewManager,self).__init__()
 		self.setWindowIcon(QIcon('groceries.png'))
-		self.username = username
-		self.assignment_id = assignment_id
+		self.setWindowTitle('Register Manager')
 
-		assignment_query = "SQL QUERY"
+		self.first_name_field = QLineEdit()
+		self.last_name_field = QLineEdit()
+		self.username_field = QLineEdit()
+		self.confirmation_code_field = QLineEdit()
+		self.password_field = QLineEdit()
+		self.confirm_pass_field = QLineEdit()
+		self.email_field = QLineEdit()
+		self.phone_field = QLineEdit()
 
-		self.order_placed_field = QLineEdit('12:33')
-		self.delivery_time_field = QLineEdit('ASAP')
-		self.status_field = QComboBox()
-		self.status_field.addItems(['Pending', 'En Route', 'Delivered'])
-		self.buyer_address_field = QLineEdit('Poop')
-		self.store_name_field = QLineEdit('Publix')
+	
+		store_query = "select store_name, house_number, street, address_id from grocery_store natural join addresses;"
+		cursor.execute(store_query)
+		store_address_dicts = cursor.fetchall()
+		self.store_address_list = ['{} - {} {}'.format(store['store_name'], store['house_number'], store['street']) for store in store_address_dicts]
 
-		self.order_placed_field.setEnabled(False)
-		self.delivery_time_field.setEnabled(False)
-		self.buyer_address_field.setEnabled(False)
-		self.store_name_field.setEnabled(False)
-
-		group_box1 = QGroupBox()
-		layout1 = QFormLayout()
-		layout1.addRow(QLabel('Order Placed: '), self.order_placed_field)
-		layout1.addRow(QLabel('Delivery Time: '),self.delivery_time_field)
-		layout1.addRow(QLabel('Status: '), self.status_field)
-		layout1.addRow(QLabel('Buyer Address: '), self.buyer_address_field)
-		layout1.addRow(QLabel('Store Name: '),self.store_name_field)
-
-		group_box1.setLayout(layout1)
+		self.store_field = QComboBox()  #add list to drop down
+		self.store_field.addItems(sorted(self.store_address_list))
+		self.store_field.setToolTip('Select a Store')
 
 
-		items_query = "SQL QUERY" 
 
-		#list of dicts for each item {item_name : name, quantity: #}
-		items = [{'item_name': 'Apple', 'quantity': 5}, {'item_name': 'Pear', 'quantity': 69}]
-
-		items = [{'item_name': 13, 'quantity': 0}, {'item_name': 12, 'quantity': 1}, {'item_name': 11, 'quantity': 2}, {'item_name': 10, 'quantity': 3}, {'item_name': 9, 'quantity': 4}, {'item_name': 8, 'quantity': 5}, {'item_name': 7, 'quantity': 6}, {'item_name': 6, 'quantity': 7}, {'item_name': 5, 'quantity': 8}, {'item_name': 4, 'quantity': 9}, {'item_name': 3, 'quantity': 10}, {'item_name': 2, 'quantity': 11}, {'item_name': 1, 'quantity': 12}, {'item_name': 0, 'quantity': 13}]
-
-		group_box2 = QGroupBox()
-		layout2 = QFormLayout()
-		layout2.addRow(QLabel('Item Name'), QLabel('Quantity'))
-
-		for item in items:		
-			self.item_line = QLineEdit(str(item['item_name']))
-			self.quantity_line = QLineEdit(str(item['quantity']))
-
-			self.item_line.setEnabled(False)
-			self.quantity_line.setEnabled(False)
-
-			layout2.addRow(self.item_line, self.quantity_line)
+		self.field_label_dict = {'First Name: ': self.first_name_field, 'Last Name: ': self.last_name_field, 'Username: ': self.username_field,
+								 'Confirmation Code' : self.confirmation_code_field, 'Password: ': self.password_field, 'Confirm Password: ': self.confirm_pass_field,
+								 'Email: ': self.email_field, 'Phone: ': self.phone_field, 'Assign Store: ': self.store_field}
 
 
-		group_box2.setLayout(layout2)
+		group_box = QGroupBox('Register Manager')
+		grid = QGridLayout()
+
+		field_dict = {}
+		for i, name in enumerate(self.field_label_dict.keys()):
+			field_dict[name] = QLabel(name)
+			row, col = divmod(i, 2)
+
+			if col == 0:
+				grid.addWidget(field_dict[name], row, col)
+
+			if col == 1:
+				col = col + 1
+				grid.addWidget(field_dict[name], row, col)
+
+			if col == 0 or col == 2:
+				grid.addWidget(self.field_label_dict[name], row, col + 1)
 
 
-		hbox_layout = QHBoxLayout()
-		hbox_layout.addWidget(group_box1)
-		hbox_layout.addWidget(group_box2)
 
-		self.setLayout(hbox_layout)
+		group_box.setLayout(grid)
+
+		for key, val in self.field_label_dict.items():
+			if key != 'Assign Store: ':
+				val.textChanged.connect(self.on_text_changed)
 		
 
+		self.register_button = QPushButton('Register')
+		self.cancel_button = QPushButton('    Cancel    ')
+		self.register_button.setEnabled(False)
+
+		self.register_button.clicked.connect(self.accept)
+		self.cancel_button.clicked.connect(self.reject)
+
+		self.layout2 = QHBoxLayout()
+		self.layout2.addWidget(self.cancel_button)
+		self.layout2.addWidget(self.register_button)
+
+		group_box2 = QGroupBox()
+		group_box2.setLayout(self.layout2)
+
+		vbox_layout = QVBoxLayout()
+
+		vbox_layout.addWidget(group_box)
+		vbox_layout.addWidget(group_box2)
+
+		self.setLayout(vbox_layout)
+		self.first_name_field.setFocus()
+
+	def on_text_changed(self):
+		fields = [bool(self.first_name_field.text()), bool(self.username_field.text()), bool(self.password_field.text()), bool(self.email_field.text()), bool(self.last_name_field.text()), bool(self.phone_field.text()), bool(self.confirm_pass_field.text()), bool(self.confirmation_code_field.text())]
+		self.register_button.setEnabled(sum(fields) == len(fields))
+
+	def accept(self):
+		self.username = self.username_field.text()
+		self.password = self.password_field.text()
+		self.first_name = self.first_name_field.text()
+		self.last_name = self.last_name_field.text()
+		self.phone = self.phone_field.text()
+		self.email = self.email_field.text().lower()
+		self.store = self.store_field.currentText()		
+		
+		self.store_address_id = 1
+
+		confirmation_code = self.confirmation_code_field.text()
+		code_query = "select user_codes from system_info where system_id = 2;"
+		cursor = connection.cursor()
+		cursor.execute(code_query)
+
+		try:
+			if len(self.first_name) < 2:
+				self.error_window = LoginMessage('first_name_length')
+				self.error_window.show()
+				return
+			elif len(self.last_name) < 2:
+				self.error_window = LoginMessage('last_name_length')
+				self.error_window.show()
+				return
+			elif len(self.username) < user_min_len:
+				self.error_window = LoginMessage('user_length')
+				self.error_window.show()
+				return
+			elif len(self.password) < pass_min_len:
+				self.error_window = LoginMessage('pass_length')
+				self.error_window.show()
+				return
+			elif len(self.phone) != 10 or not self.phone.isdigit():
+				self.error_window = LoginMessage('phone')
+				self.error_window.show()
+				return
+			elif not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', self.email)):
+				self.error_window = LoginMessage('invalid_email')
+				self.error_window.show()
+				return
+			elif confirmation_code != cursor.fetchall()[0]['user_codes']:
+				self.error_window = LoginMessage('confirmation_code')
+				self.error_window.show()
+				return
+
+			cursor = connection.cursor()
+			check_query = "select * from user where username = '{}'".format(self.username)  #check to see if username already exists
+			cursor.execute(check_query)
+
+			existing_user_row_count = cursor.rowcount
+			if existing_user_row_count != 0:
+				self.error_window = LoginMessage('existing_user')
+				self.error_window.show()
+				return
+
+			create_user = "insert into user values ('{}', '{}', '{}', '{}', 'manager', '{}');".format(self.first_name, self.last_name, self.username, self.password, self.email)
+		
+			cursor.execute(create_user)
+			connection.commit()		
+
+			create_manager = "insert into manages values ('{}', '{}');".format(self.username, self.store_address_id)
+				
+			print('success')
+
+		except Exception as e:
+			print(f"Fuck")
+			print(e)
+			qApp.quit()
+
+	def reject(self):
+		self.nav_window = RegisterNavigation()
+		self.nav_window.show()
+		self.close()
 
 
 def tablemaker(query):
