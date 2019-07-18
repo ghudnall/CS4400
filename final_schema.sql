@@ -4,7 +4,7 @@ use GROCERY_TECH;
 
 
 CREATE TABLE ADDRESSES
-(address_id INT(2) NOT NULL,
+(address_id INT(2) NOT NULL ,
  street VARCHAR(64) NOT NULL,
  zipcode INT(5) NOT NULL,
  state VARCHAR(16) NOT NULL,

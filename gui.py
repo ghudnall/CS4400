@@ -45,8 +45,8 @@ class Login(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Login')
 
-		self.username_field = QLineEdit('deliverer')
-		self.password_field = QLineEdit('deliverer')
+		self.username_field = QLineEdit('m')
+		self.password_field = QLineEdit('m')
 
 		form_group_box = QGroupBox('User Login')
 
@@ -522,11 +522,11 @@ class NewManager(QWidget):
 	
 		store_query = "select store_name, house_number, street, address_id from grocery_store natural join addresses;"
 		cursor.execute(store_query)
-		store_address_dicts = cursor.fetchall()
-		self.store_address_list = ['{} - {} {}'.format(store['store_name'], store['house_number'], store['street']) for store in store_address_dicts]
+		store_address_dict_list = cursor.fetchall()
+		self.store_address_dict = {'{} - {} {}'.format(store['store_name'], store['house_number'], store['street']): store['address_id'] for store in store_address_dict_list}
 
 		self.store_field = QComboBox()  #add list to drop down
-		self.store_field.addItems(sorted(self.store_address_list))
+		self.store_field.addItems(sorted(self.store_address_dict.keys()))
 		self.store_field.setToolTip('Select a Store')
 
 
@@ -596,9 +596,9 @@ class NewManager(QWidget):
 		self.last_name = self.last_name_field.text()
 		self.phone = self.phone_field.text()
 		self.email = self.email_field.text().lower()
-		self.store = self.store_field.currentText()		
 		
-		self.store_address_id = 1
+		store = self.store_field.currentText()		
+		self.store_address_id = self.store_address_dict[store]
 
 		confirmation_code = self.confirmation_code_field.text()
 		code_query = "select user_codes from system_info where system_id = 2;"
@@ -734,7 +734,7 @@ class StoreList(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.username = username
 
-		self.query  = "select store_name as Store, address as Address from store;"
+		self.query  = "select store_name as 'Store', CONCAT (house_number, ' ', street) as 'Address' from grocery_store natural join addresses;"
 		self.tabledata = tablemaker(self.query)
 		column_headers = self.tabledata[0]
 		rows = self.tabledata[1]
@@ -802,7 +802,7 @@ class StoreList(QWidget):
 		indexes = self.table.selectionModel().selectedRows()
 		for index in indexes:
 			store_name = [self.table.item(index.row(),i).text() for i in range(self.table.columnCount())][0]
-
+		print(store_name)
 		self.store_homepage = StoreHomepage(self.username, store_name)
 		self.store_homepage.show()
 		self.close()
@@ -1194,6 +1194,12 @@ class BuyerAcctInfo(QWidget):
 	def update_info(self):
 		email = self.email_field.text()
 
+		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
+			self.error_window = LoginMessage('invalid_email')
+			self.error_window.show()
+			return
+
+
 		phone = self.phone_field.text()
 		state = self.state_field.text()
 		address = self.address_field.text()
@@ -1207,6 +1213,7 @@ class BuyerAcctInfo(QWidget):
 		cursor = connection.cursor()
 		cursor.execute(update_user)
 		cursor.execute(update_buyer)
+		connection.commit()
 
 		update_msg = QMessageBox()
 		update_msg.setIcon(QMessageBox.Information)
@@ -1577,13 +1584,17 @@ class DelivererAcctInfo(QWidget):
 
 	def update_info(self):
 		email = self.email_field.text()
-		print(email)
-		print(self.username)
+		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
+			self.error_window = LoginMessage('invalid_email')
+			self.error_window.show()
+			return
+
 
 		update_user = "update user set email = '{}' where username = '{}';".format(email, self.username)
 		
 		cursor = connection.cursor()
 		cursor.execute(update_user)
+		connection.commit()
 
 		update_msg = QMessageBox()
 		update_msg.setIcon(QMessageBox.Information)
@@ -1790,6 +1801,8 @@ class ManagerFunctionality(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Manager Functionality')
 
+		self.username = username
+
 		self.revenue_report = QPushButton('View Revenue Report')
 		self.account_info_button = QPushButton('Account Information')
 		self.view_orders_button = QPushButton('View Orders')
@@ -1820,17 +1833,297 @@ class ManagerFunctionality(QWidget):
 		self.setGeometry(740,200,500,100)
 
 	def accept_revenue_report(self):
-		pass
+		self.rev_report = RevenueReport(self.username)
+		self.rev_report.show()
+		self.close()
 	def accept_account_info(self):
-		pass
+		self.mgr_acct = ManagerAcctInfo(self.username)
+		self.mgr_acct.show()
+		self.close()
 	def accept_view_orders(self):
 		pass
 	def accept_view_inventory(self):
-		pass
+		self.view_inventory = Inventory(self.username)
+		self.view_inventory.show()
+		self.close()
 	def accept_back(self):
 		self.loginwindow = Login()
 		self.loginwindow.show()
 		self.close()
+
+class RevenueReport(QWidget):
+	def __init__(self, username):
+		super(RevenueReport, self).__init__()
+		self.setWindowTitle('Revenue Report')
+		self.setWindowIcon(QIcon('groceries.png'))
+		self.username = username
+
+		store_info_query = "select store_name as 'Store Name: ', Y.quantity as 'Number of Items Sold: ', CONCAT('$', (listed_price * Y.quantity)) as 'Revenue: ', CONCAT('$', ((listed_price - wholesale_price) * Y.quantity)) as 'Profit: ' from manages natural join (select * from order_from natural join (select * from select_item natural join item) X) Y join (select store_name, address_id from grocery_store) Z where manager_username = '{}' and store_address = address_id;".format(self.username)
+		cursor.execute(store_info_query)
+		info = cursor.fetchone()
+
+		if not info:
+			store_info_query = "select store_name as 'Store Name: ' from manages natural join grocery_store where store_address = address_id and manager_username = '{}';".format(self.username)
+			cursor.execute(store_info_query)
+			info = cursor.fetchone()
+			info['Number of Items Sold: '] = 0
+			info['Revenue: '] = '$0'
+			info['Profit: '] = '$0'
+
+		layout = QFormLayout()
+		for key in info:
+			field = QLineEdit(str(info[key]))
+			layout.addRow(QLabel(str(key)), field)
+			field.setEnabled(False)
+
+		group_box = QGroupBox()
+		group_box.setLayout(layout)
+
+		back_button = QPushButton('Back')
+		back_button.clicked.connect(self.back)
+
+		vbox = QVBoxLayout()
+		vbox.addWidget(group_box)
+		vbox.addWidget(back_button)
+		self.setLayout(vbox)
+
+	def back(self):
+		self.mgr_func = ManagerFunctionality(self.username)
+		self.mgr_func.show()
+		self.close()
+
+class ManagerAcctInfo(QWidget):
+	def __init__(self, username):
+		super(ManagerAcctInfo, self).__init__()
+
+		self.username = username
+		self.setWindowIcon(QIcon('groceries.png'))
+		self.setWindowTitle('Account Information')
+
+		manager_info_query = "select first_name, last_name, email, store_name, CONCAT(house_number, ' ', street) as 'store_address' from user natural join (select store_name, address_id from grocery_store natural join manages where manager_username = '{}' and store_address = address_id) X natural join addresses where username = '{}';".format(self.username, self.username)
+		cursor = connection.cursor()
+		cursor.execute(manager_info_query)
+		manager_info = cursor.fetchone()
+
+		group_box = QGroupBox()
+		grid = QGridLayout()
+
+
+		self.first_name_field = QLineEdit(manager_info['first_name'])
+		self.last_name_field = QLineEdit(manager_info['last_name'])
+		self.username_field = QLineEdit(self.username)
+		self.store_field = QLineEdit(manager_info['store_name'])
+		self.store_address_field = QLineEdit(manager_info['store_address'])
+		self.phone_field = QLineEdit('69')
+		self.email_field = QLineEdit(manager_info['email'])
+
+		self.first_name_field.setEnabled(False)
+		self.last_name_field.setEnabled(False)
+		self.username_field.setEnabled(False)
+
+		group_box1 = QGroupBox('Manager Account Information')
+		grid = QGridLayout()
+
+		grid.addWidget(QLabel('First Name: '), 0, 0)
+		grid.addWidget(self.first_name_field, 0, 1)
+		grid.addWidget(QLabel('Last Name: '), 0, 2)
+		grid.addWidget(self.last_name_field, 0, 3)
+
+		grid.addWidget(QLabel('Username: '), 1, 0)
+		grid.addWidget(self.username_field, 1, 1)
+		grid.addWidget(QLabel('Phone: '), 1, 2)
+		grid.addWidget(self.phone_field, 1, 3)
+
+		grid.addWidget(QLabel('Managed Grocery Store: '), 2, 0)
+		grid.addWidget(self.store_field, 2, 1)
+		grid.addWidget(QLabel('Grocery Store Address: '), 2, 2)
+		grid.addWidget(self.store_address_field, 2, 3)
+
+
+
+		grid.addWidget(QLabel('Email: '), 4, 0)
+		grid.addWidget(self.email_field, 4, 1)
+
+		group_box1.setLayout(grid)
+
+		vbox_layout = QVBoxLayout()
+		vbox_layout.addWidget(group_box1)
+
+		group_box2 = QGroupBox()
+
+		self.back_button= QPushButton('Back')
+		self.delete_acct_button = QPushButton('Delete Account')
+		self.update_button = QPushButton('Update')
+
+		self.back_button.clicked.connect(self.back)
+		self.delete_acct_button.clicked.connect(self.check_delete_acct)
+		self.update_button.clicked.connect(self.update_info)
+
+		hbox_layout = QHBoxLayout()
+		hbox_layout.addWidget(self.back_button)
+		hbox_layout.addWidget(self.delete_acct_button)
+		hbox_layout.addWidget(self.update_button)
+
+		group_box2.setLayout(hbox_layout)
+
+		vbox_layout.addWidget(group_box2)
+
+		self.setLayout(vbox_layout)
+		self.setGeometry(740,200,700,100)
+
+	def update_info(self):
+		email = self.email_field.text()
+
+		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
+			self.error_window = LoginMessage('invalid_email')
+			self.error_window.show()
+			return
+
+
+		update_user = "update user set email = '{}' where username = '{}';".format(email, self.username)
+		
+		cursor = connection.cursor()
+		cursor.execute(update_user)
+		connection.commit()
+
+		update_msg = QMessageBox()
+		update_msg.setIcon(QMessageBox.Information)
+		update_msg.setWindowTitle('Manager Account Information')
+		update_msg.setText("Information Updated!")
+		update_msg.setStandardButtons(QMessageBox.Ok)
+		update_msg.accepted.connect(self.back)
+		update_msg.exec_()
+
+	def back(self):
+		self.deliverer_func = ManagerFunctionality(self.username)
+		self.deliverer_func.show()
+		self.close()
+
+	def check_delete_acct(self):
+		msg = QMessageBox()
+		msg.setWindowTitle('Delete Account')
+		msg.setText("Are you sure you want to delete your account?")
+		msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+		msg.accepted.connect(self.accept_delete_acct)
+		msg.exec_()
+
+	def accept_delete_acct(self):
+		query = "delete from user where username = '{}';".format(self.username)
+		cursor.execute(query)
+		self.login = Login()
+		self.login.show()
+		self.close()
+
+class Inventory(QWidget):
+	def __init__(self, username):
+		super(Inventory, self).__init__()
+
+		self.setWindowIcon(QIcon('groceries.png'))
+		self.setWindowTitle('Inventory')
+		self.username = username
+
+		inventory_query = "select item_name as 'Item Name', description as 'Description', quantity as 'Quantity', listed_price as 'Retail Price', wholesale_price as 'Wholesale Price', exp_date as 'Expiration Date' from item;"
+
+		self.tabledata = tablemaker(inventory_query)
+		column_headers = self.tabledata[0]
+		self.rows = self.tabledata[1]
+
+		self.table = QTableWidget(len(self.rows), len(self.rows[0]), self)
+		self.table.horizontalHeader().setStretchLastSection(True)
+		self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+		self.table.verticalHeader().setStretchLastSection(True)
+		self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+		self.back = QPushButton('Back')
+		self.previous = QPushButton('Previous')
+		self.next = QPushButton('Next')
+		self.view_item = QPushButton('View Item')
+
+		self.back.clicked.connect(self.accept_back)
+		self.previous.clicked.connect(self.accept_prev)
+		self.next.clicked.connect(self.accept_next)
+		self.view_item.clicked.connect(self.accept_view_item)
+
+		button_group_box = QGroupBox()
+		hbox_layout = QHBoxLayout()
+
+		hbox_layout.addWidget(self.back)
+		hbox_layout.addWidget(self.previous)
+		hbox_layout.addWidget(self.next)
+		hbox_layout.addWidget(self.view_item)
+
+		button_group_box.setLayout(hbox_layout)
+
+		self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+		self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+		self.table.clicked.connect(self.rowclicked)
+
+		self.table.setHorizontalHeaderLabels(column_headers)
+		for i, row in enumerate(self.rows):
+		    for j, field in enumerate(row):
+		        item = QTableWidgetItem(field)
+		        self.table.setItem(i, j, item)
+
+		vbox_layout = QVBoxLayout()
+		vbox_layout.addWidget(self.table)
+		vbox_layout.addWidget(button_group_box)
+
+		self.view_item.setEnabled(False)
+		self.setLayout(vbox_layout)
+		self.setGeometry(740,200,800,200)
+
+	def rowclicked(self):
+		if self.rows != [['No Items Found.']]:
+			self.view_item.setEnabled(True)
+
+	def accept_back(self):
+		self.mgr_func = ManagerFunctionality(self.username)
+		self.mgr_func.show()
+		self.close()
+
+	def accept_prev(self):
+		print('PREVIOUS')
+
+	def accept_next(self):
+		print("NEXT")
+
+	def accept_view_item(self):
+		indexes = self.table.selectionModel().selectedRows()
+		for index in indexes:
+			item_info = [self.table.item(index.row(),i).text() for i in range(self.table.columnCount())]
+		
+		self.view_item_window = ViewItem(item_info)
+		self.view_item_window.show()
+
+class ViewItem(QWidget):
+	def __init__(self, item_info):
+		super(ViewItem, self).__init__()
+		self.setWindowIcon(QIcon('groceries.png'))
+		self.setWindowTitle('Item Details')
+		self.item_info = item_info
+
+		group_box = QGroupBox()
+		layout = QFormLayout()
+
+		layout.addRow(QLabel('Item Name: '), QLineEdit(self.item_info[0]))
+		layout.addRow(QLabel('Description: '), QLineEdit(self.item_info[1]))
+		layout.addRow(QLabel('Quantity: '), QLineEdit(self.item_info[2]))
+		layout.addRow(QLabel('Retail Price: '), QLineEdit('$' + self.item_info[3]))
+		layout.addRow(QLabel('Wholesale Price: '), QLineEdit('$' + self.item_info[4]))
+		layout.addRow(QLabel('Expiration Date: '), QLineEdit(self.item_info[5]))
+
+		group_box.setLayout(layout)
+
+		vbox = QVBoxLayout()
+		vbox.addWidget(group_box)
+
+		self.back_button = QPushButton('Back')
+		self.back_button.clicked.connect(self.close)
+		vbox.addWidget(self.back_button)
+
+		self.setLayout(vbox)
+
 
 class MainWindow(QMainWindow): # main window. includes buttons for navigating page and taskbars.
 	def __init__(self,user_type, username):
