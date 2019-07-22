@@ -152,7 +152,7 @@ class LoginMessage(QWidget):
         self.setWindowTitle('Login Message')
         self.layout = QVBoxLayout()
 
-        error_message_dict = {'wrong_password':'Wrong password. Please try again.', 'wrong_user':'The username you have entered does not match any accounts.',
+        error_message_dict = {'wrong_password':'Wrong password. Please try again.', 'wrong_user':'The username you entered does not match any accounts.',
         					  'user_length': 'Username must be between 3 and 18 characters.', 'pass_length': 'Password must be between 6 and 18 characters',
         					  'first_name_length': 'First name must be greater than 2 characters', 'last_name_length': 'Last name must be greater than 2 characters',
         					  'existing_user': 'Username already exists. Please choose a different username.', 'invalid_user' : 'Please enter a valid username.', 
@@ -169,7 +169,7 @@ class LoginMessage(QWidget):
         self.ok.clicked.connect(self.close)
         self.layout.addWidget(self.ok)
 
-        self.setGeometry(600,375,300,100)
+        self.setGeometry(800,250,350,100)
         self.setLayout(self.layout) #displays login error screen. incorrect pass/user, etc
 
 class RegisterNavigation(QWidget):
@@ -1475,6 +1475,7 @@ class PaymentMethods(QWidget):
 	def accept_diff_payment(self):
 		self.new_payment = NewPayment(self.username)
 		self.new_payment.show()
+		self.close()
 
 	def accept_confirm(self):
 		print('CONFIRM ORDER')
@@ -1559,11 +1560,14 @@ class NewPayment(QWidget):
 			routing_len_msg.show()
 			return
 
-
 		print('default?')
-		# add_payment_query = "insert into payments values ('{}', '{}', '{}', '{}');".format(self.username, payment_name, account_number, routing_number)
-		# cursor.execute(add_payment_query)
-		# connection.commit()
+		add_payment_query = "insert into payments values ('{}', '{}', '{}', '{}');".format(self.username, payment_name, account_number, routing_number)
+		cursor.execute(add_payment_query)
+		connection.commit()
+
+		self.payment_methods = PaymentMethods(self.username, 'new')
+		self.payment_methods.show()
+		self.close()
 
 class Checkout(QWidget):
 	def __init__(self, username, order_id):
@@ -1758,13 +1762,19 @@ class DelivererAcctInfo(QWidget):
 
 	def update_info(self):
 		email = self.email_field.text()
+		phone = self.phone_field.text()
 		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
 			self.error_window = LoginMessage('invalid_email')
 			self.error_window.show()
 			return
+		elif len(phone) != 10 or not phone.isdigit():
+			self.error_window = LoginMessage('phone')
+			self.error_window.show()
+			return
 
 
-		update_user = "update user set email = '{}' where username = '{}';".format(email, self.username)
+
+		update_user = "update userr set email = '{}' where username = '{}';".format(email, self.username)
 		
 		cursor = connection.cursor()
 		cursor.execute(update_user)
@@ -1792,11 +1802,9 @@ class DelivererAcctInfo(QWidget):
 		msg.exec_()
 
 	def accept_delete_acct(self):
-		query = "delete from buyer where username = '{}';".format(self.username)
-		cursor.execute(query)
 		query = "delete from userr where username = '{}';".format(self.username)
 		cursor.execute(query)
-		print('delete account')
+		connection.commit()
 		self.login = Login()
 		self.login.show()
 		self.close()
@@ -1807,6 +1815,7 @@ class Assigments(QWidget):
 		self.username = username
 		self.setWindowTitle('Assigments')
 		self.setWindowIcon(QIcon('groceries.png'))
+
 
 		self.query  = "select first_name, last_name from userr;"
 		self.tabledata = tablemaker(self.query)
@@ -1862,8 +1871,8 @@ class Assigments(QWidget):
 		self.view_assn_details.setEnabled(True)
 
 	def accept_back(self):
-		self.buyer_func = BuyerFunctionality(self.username)
-		self.buyer_func.show()
+		self.deliverer_func = DelivererFunctionality(self.username)
+		self.deliverer_func.show()
 		self.close()
 
 	def accept_prev(self):
@@ -2186,6 +2195,7 @@ class ManagerAcctInfo(QWidget):
 	def accept_delete_acct(self):
 		query = "delete from userr where username = '{}';".format(self.username)
 		cursor.execute(query)
+		connection.commit()
 		self.login = Login()
 		self.login.show()
 		self.close()
