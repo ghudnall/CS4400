@@ -406,7 +406,6 @@ class NewDeliverer(QWidget):
 		self.username_field = QLineEdit()
 		self.password_field = QLineEdit()
 		self.email_field = QLineEdit()
-		self.phone_field = QLineEdit()
 
 		self.last_name_field = QLineEdit()
 		self.confirmation_code_field = QLineEdit()
@@ -423,7 +422,7 @@ class NewDeliverer(QWidget):
 
 		self.field_label_dict = {'First Name: ': self.first_name_field, 'Last Name: ': self.last_name_field, 'Username: ': self.username_field,
 						 'Confirmation Code' : self.confirmation_code_field, 'Password: ': self.password_field, 'Confirm Password: ': self.confirm_pass_field,
-						 'Email: ': self.email_field, 'Phone: ': self.phone_field}
+						 'Email: ': self.email_field}
 
 
 		grid = QGridLayout()
@@ -463,7 +462,7 @@ class NewDeliverer(QWidget):
 		self.first_name_field.setFocus()
 
 	def on_text_changed(self):
-		fields = [bool(self.first_name_field.text()), bool(self.username_field.text()), bool(self.password_field.text()), bool(self.email_field.text()), bool(self.last_name_field.text()), bool(self.phone_field.text()), bool(self.confirm_pass_field.text()), bool(self.confirmation_code_field.text())]
+		fields = [bool(self.first_name_field.text()), bool(self.username_field.text()), bool(self.password_field.text()), bool(self.email_field.text()), bool(self.last_name_field.text()), bool(self.confirm_pass_field.text()), bool(self.confirmation_code_field.text())]
 		self.register_button.setEnabled(sum(fields) == len(fields))
 
 	def accept(self):
@@ -471,7 +470,6 @@ class NewDeliverer(QWidget):
 		self.password = self.password_field.text()
 		self.first_name = self.first_name_field.text()
 		self.last_name = self.last_name_field.text()
-		self.phone = self.phone_field.text()
 		self.email = self.email_field.text().lower()
 		self.confirmation_code = self.confirmation_code_field.text()
 
@@ -501,10 +499,7 @@ class NewDeliverer(QWidget):
 				self.error_window = LoginMessage('pass_mismatch')
 				self.error_window.show()
 				return
-			elif len(self.phone) != 10 or not self.phone.isdigit():
-				self.error_window = LoginMessage('phone')
-				self.error_window.show()
-				return
+
 			elif not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', self.email)):
 				self.error_window = LoginMessage('invalid_email')
 				self.error_window.show()
@@ -556,7 +551,6 @@ class NewManager(QWidget):
 		self.password_field = QLineEdit()
 		self.confirm_pass_field = QLineEdit()
 		self.email_field = QLineEdit()
-		self.phone_field = QLineEdit()
 
 	
 		store_query = "select store_name, house_number, street, address_id from grocerystore natural join address where address_id = id;"
@@ -572,7 +566,7 @@ class NewManager(QWidget):
 
 		self.field_label_dict = {'First Name: ': self.first_name_field, 'Last Name: ': self.last_name_field, 'Username: ': self.username_field,
 								 'Confirmation Code' : self.confirmation_code_field, 'Password: ': self.password_field, 'Confirm Password: ': self.confirm_pass_field,
-								 'Email: ': self.email_field, 'Phone: ': self.phone_field, 'Assign Store: ': self.store_field}
+								 'Email: ': self.email_field, 'Assign Store: ': self.store_field}
 
 
 		group_box = QGroupBox('Register Manager')
@@ -625,7 +619,7 @@ class NewManager(QWidget):
 		self.first_name_field.setFocus()
 
 	def on_text_changed(self):
-		fields = [bool(self.first_name_field.text()), bool(self.username_field.text()), bool(self.password_field.text()), bool(self.email_field.text()), bool(self.last_name_field.text()), bool(self.phone_field.text()), bool(self.confirm_pass_field.text()), bool(self.confirmation_code_field.text())]
+		fields = [bool(self.first_name_field.text()), bool(self.username_field.text()), bool(self.password_field.text()), bool(self.email_field.text()), bool(self.last_name_field.text()), bool(self.confirm_pass_field.text()), bool(self.confirmation_code_field.text())]
 		self.register_button.setEnabled(sum(fields) == len(fields))
 
 	def accept(self):
@@ -633,7 +627,6 @@ class NewManager(QWidget):
 		self.password = self.password_field.text()
 		self.first_name = self.first_name_field.text()
 		self.last_name = self.last_name_field.text()
-		self.phone = self.phone_field.text()
 		self.email = self.email_field.text().lower()
 		
 		store = self.store_field.currentText()		
@@ -660,10 +653,6 @@ class NewManager(QWidget):
 				return
 			elif len(self.password) < pass_min_len:
 				self.error_window = LoginMessage('pass_length')
-				self.error_window.show()
-				return
-			elif len(self.phone) != 10 or not self.phone.isdigit():
-				self.error_window = LoginMessage('phone')
 				self.error_window.show()
 				return
 			elif not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', self.email)):
