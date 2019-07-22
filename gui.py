@@ -159,7 +159,7 @@ class LoginMessage(QWidget):
         					  'invalid_pass' : 'Please enter a valid password.', 'pass_mismatch': 'Passwords don\'t match.', 'pass_changed': 'Password changed.',
         					  'invalid_email': 'Please enter a valid email address.', 'zip_code': 'Please enter a valid zip code.', 'phone': 'Please enter a valid phone number.',
         					  'confirmation_code' : 'Incorrect confirmation code.', 'unique_payment': 'Payment name must be unique.', 'acct_num_len': 'Account number must be a 9 digit number.',
-        					  'routing_len': 'Routing number must be a 9 digit number.', 'state': 'Please enter a US state.'
+        					  'routing_len': 'Routing number must be a 9 digit number.', 'state': 'Please enter a US state.', 'address': 'Please enter a valid address.'
         					  }
 
         self.messagelabel = QLabel(error_message_dict[error_code])
@@ -296,13 +296,35 @@ class NewBuyer(QWidget):
 		self.first_name = self.field_label_dict['First Name: '].text()
 		self.last_name = self.field_label_dict['Last Name: '].text()
 		self.email = self.field_label_dict['Email: '].text().lower()
-		self.address = self.field_label_dict['Address: '].text()
+		address_raw = self.field_label_dict['Address: '].text()
 		self.state = self.field_label_dict['State: '].currentText()
 		self.city = self.field_label_dict['City: '].text()
 		self.phone = self.field_label_dict['Phone: '].text()
 		self.zip = self.field_label_dict['Zip Code: '].text()
 
 		self.street = 'street'
+
+		try:
+			address_split = address_raw.split()
+			if len(address_split) < 2 or not address_split[0].isdigit():
+				self.error_window = LoginMessage('address')
+				self.error_window.show()
+				return
+
+			else:
+				house_number = address_split[0]
+				del address_split[0]
+				street = ''
+				for i, el in enumerate(address_split):
+					street += el
+					if i != len(address_split) - 1:
+						street += ' '
+				street = street.title()
+
+		except:
+			self.error_window = LoginMessage('address')
+			self.error_window.show()
+			return			
 
 		try:
 			if len(self.first_name) < fname_min_len:
@@ -757,10 +779,11 @@ class StoreList(QWidget):
 		column_headers = self.tabledata[0]
 		rows = self.tabledata[1]
 
-		print('figure out how to get store_id and give it to next screen')
+		address_id_query  = "select address_id, store_name as 'Store', CONCAT (house_number, ' ', street) as 'Address' from grocerystore natural join address where address_id = id;"
 
-		for row in self.tabledata:
-			print(row)
+		cursor.execute(address_id_query)
+		store_data = cursor.fetchall()
+		self.address_id_dict = {str(store['Store']) + str(store['Address']) : store['address_id'] for store in store_data}
 
 		self.table = QTableWidget(len(rows), len(rows[0]), self)
 		self.table.horizontalHeader().setStretchLastSection(True)
@@ -805,7 +828,7 @@ class StoreList(QWidget):
 
 		self.select.setEnabled(False)
 		self.setLayout(vbox_layout)
-		self.setGeometry(740,200,500,200)
+		self.setGeometry(740,200,800,800)
 
 	def rowclicked(self):
 		self.select.setEnabled(True)
@@ -825,8 +848,11 @@ class StoreList(QWidget):
 		indexes = self.table.selectionModel().selectedRows()
 		for index in indexes:
 			store_name = [self.table.item(index.row(),i).text() for i in range(self.table.columnCount())][0]
-		print(store_name)
-		self.store_homepage = StoreHomepage(self.username, store_name)
+			store_address_id = [self.table.item(index.row(),i).text() for i in range(self.table.columnCount())][1]
+		store_key = str(store_name) +' '+ str(store_address_id)
+		store_id = self.address_id_dict[store_key]
+
+		self.store_homepage = StoreHomepage(self.username, store_id)
 		self.store_homepage.show()
 		self.close()
 		
@@ -838,7 +864,6 @@ class StoreHomepage(QWidget):
 
 		self.username = username
 		self.store_id = store_id
-		print('figure out store_id')
 
 		self.find_item = QPushButton('Find Item')
 		self.view_cart_button = QPushButton('View Cart')
@@ -1243,7 +1268,7 @@ class BuyerAcctInfo(QWidget):
 					msg.exec_()
 					return
 			except:
-				x=2
+				pass
 
 		email = self.email_field.text()
 		phone = self.phone_field.text()
