@@ -16,6 +16,22 @@ user_min_len = 1
 global pass_min_len
 pass_min_len = 1
 
+global fname_min_len
+fname_min_len = 1
+
+global lname_min_len
+lname_min_len = 1
+
+global state_list
+state_list = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado",
+			  "Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois",
+			  "Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland",
+			  "Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana",
+			  "Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York",
+			  "North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania",
+			  "Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah",
+			  "Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"]
+
 class DbLogin():
 	def __init__(self):
 		try:
@@ -23,7 +39,7 @@ class DbLogin():
 			connection = pymysql.connect(host= 'localhost',
                                          user='root',
                                          password= 'blackdog',
-                                         db= 'Grocery_Tech',
+                                         db= 'GroceryTech',
                                          charset='utf8mb4',
                                          cursorclass=pymysql.cursors.DictCursor)
 			global cursor
@@ -45,8 +61,8 @@ class Login(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Login')
 
-		self.username_field = QLineEdit('m')
-		self.password_field = QLineEdit('m')
+		self.username_field = QLineEdit('buyer')
+		self.password_field = QLineEdit('buyer')
 
 		form_group_box = QGroupBox('User Login')
 
@@ -83,11 +99,11 @@ class Login(QWidget):
 		self.password = self.password_field.text()
 
 		if len(self.username) >= user_min_len and len(self.password) >= pass_min_len:
-			username_query = "select * from user where username = '{}';".format(self.username)
+			username_query = "select * from userr where username = '{}';".format(self.username)
 			cursor.execute(username_query)			#check only if username exists. If it does not, open LoginMessage and say user DNE
 			user_row_count = cursor.rowcount
 			
-			password_query = "select * from user where PASSWORD = '{}' and USERNAME = '{}';".format(self.password, self.username)
+			password_query = "select * from userr where PASSWORD = '{}' and USERNAME = '{}';".format(self.password, self.username)
 
 			cursor.execute(password_query)
 			password_row_count = cursor.rowcount
@@ -99,7 +115,7 @@ class Login(QWidget):
 				self.error_window = LoginMessage('wrong_password')
 				self.error_window.show()
 			else:											 #else open next window. username/password correct
-				user_type_query = "select user_type from user where username = '{}' and password = '{}';".format(self.username, self.password)
+				user_type_query = "select user_type from userr where username = '{}' and password = '{}';".format(self.username, self.password)
 				cursor.execute(user_type_query)
 				self.user_type = cursor.fetchone()['user_type']
 
@@ -142,7 +158,9 @@ class LoginMessage(QWidget):
         					  'existing_user': 'Username already exists. Please choose a different username.', 'invalid_user' : 'Please enter a valid username.', 
         					  'invalid_pass' : 'Please enter a valid password.', 'pass_mismatch': 'Passwords don\'t match.', 'pass_changed': 'Password changed.',
         					  'invalid_email': 'Please enter a valid email address.', 'zip_code': 'Please enter a valid zip code.', 'phone': 'Please enter a valid phone number.',
-        					  'confirmation_code' : 'Incorrect confirmation code.'}
+        					  'confirmation_code' : 'Incorrect confirmation code.', 'unique_payment': 'Payment name must be unique.', 'acct_num_len': 'Account number must be a 9 digit number.',
+        					  'routing_len': 'Routing number must be a 9 digit number.', 'state': 'Please enter a US state.'
+        					  }
 
         self.messagelabel = QLabel(error_message_dict[error_code])
         self.layout.addWidget(self.messagelabel)
@@ -218,14 +236,7 @@ class NewBuyer(QWidget):
 		self.state_field = QComboBox()
 		self.zip_field = QLineEdit()
 
-		self.state_field.addItems(["Alabama","Alaska","Arizona","Arkansas","California","Colorado",
-								  "Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois",
-								  "Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland",
-								  "Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana",
-								  "Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York",
-								  "North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania",
-								  "Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah",
-								  "Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"])
+		self.state_field.addItems(state_list)
 
 
 		self.field_label_dict = {'First Name: ': self.first_name_field, 'Last Name: ': self.last_name_field, 'Username: ': self.username_field,
@@ -294,11 +305,11 @@ class NewBuyer(QWidget):
 		self.street = 'street'
 
 		try:
-			if len(self.first_name) < 2:
+			if len(self.first_name) < fname_min_len:
 				self.error_window = LoginMessage('first_name_length')
 				self.error_window.show()
 				return
-			elif len(self.last_name) < 2:
+			elif len(self.last_name) < lname_min_len:
 				self.error_window = LoginMessage('last_name_length')
 				self.error_window.show()
 				return
@@ -328,7 +339,7 @@ class NewBuyer(QWidget):
 				return
 
 			cursor = connection.cursor()
-			check_query = "select * from user where username = '{}'".format(self.username)  #check to see if username already exists
+			check_query = "select * from userr where username = '{}'".format(self.username)  #check to see if username already exists
 			cursor.execute(check_query)
 
 			existing_user_row_count = cursor.rowcount
@@ -339,8 +350,11 @@ class NewBuyer(QWidget):
 
 			self.address_id = 1
 			self.default_payment = 'visa'
-			create_user = "insert into user values ('{}', '{}', '{}', '{}', 'buyer', '{}');".format(self.first_name, self.last_name, self.username, self.password, self.email)
-			create_buyer = "insert into buyer values ('{}', '{}', '{}', '{}');".format(self.username, self.address_id, self.phone, self.default_payment)
+			self.default_store_id = 1
+
+			print('address_id, default_payment, store_id')
+			create_user = "insert into userr values ('{}', '{}', '{}', '{}', '{}', '{}');".format(self.username, self.password, 'buyer', self.email, self.first_name, self.last_name)
+			create_buyer = "insert into buyer values ('{}', '{}', '{}', '{}', '{}');".format(self.username, self.phone,  self.address_id, self.default_payment, self.default_store_id)
 						
 			cursor.execute(create_user)
 			connection.commit()
@@ -350,10 +364,8 @@ class NewBuyer(QWidget):
 			self.loginwindow = Login()
 			self.loginwindow.show()
 			self.close()
-			print('DONE')
 
 		except Exception as e:
-			print(f"Fuck")
 			print(e)
 			qApp.quit()
 
@@ -385,43 +397,47 @@ class NewDeliverer(QWidget):
 		self.register_button.setEnabled(False)
 
 		group_box1 = QGroupBox('Deliverer Information')
-		group_box2 = QGroupBox(' ')
+		group_box2 = QGroupBox()
 
-		self.layout1 = QFormLayout()
-		self.layout1.addRow(QLabel('First Name:'), self.first_name_field)
-		self.layout1.addRow(QLabel('Username:'), self.username_field)
-		self.layout1.addRow(QLabel('Password:'),self.password_field)
-		self.layout1.addRow(QLabel('Email: '), self.email_field)
-		self.layout1.addRow(QLabel('Phone Number: '), self.phone_field)
+		self.field_label_dict = {'First Name: ': self.first_name_field, 'Last Name: ': self.last_name_field, 'Username: ': self.username_field,
+						 'Confirmation Code' : self.confirmation_code_field, 'Password: ': self.password_field, 'Confirm Password: ': self.confirm_pass_field,
+						 'Email: ': self.email_field, 'Phone: ': self.phone_field}
 
-		self.layout2 = QFormLayout()
-		self.layout2.addRow(QLabel('Last Name:'),self.last_name_field)
-		self.layout2.addRow(QLabel('Confirmation Code: '), self.confirmation_code_field)
-		self.layout2.addRow(QLabel('Confirm Password'), self.confirm_pass_field)
 
-		#enable ok button only when all fields have been filled
-		self.first_name_field.textChanged.connect(self.on_text_changed)
-		self.username_field.textChanged.connect(self.on_text_changed)
-		self.password_field.textChanged.connect(self.on_text_changed)
-		self.email_field.textChanged.connect(self.on_text_changed)
-		self.phone_field.textChanged.connect(self.on_text_changed)
-		self.last_name_field.textChanged.connect(self.on_text_changed)
-		self.confirmation_code_field.textChanged.connect(self.on_text_changed)
-		self.confirm_pass_field.textChanged.connect(self.on_text_changed)
+		grid = QGridLayout()
 
-		self.layout2.addWidget(self.register_button)
+		field_dict = {}
+		for i, name in enumerate(self.field_label_dict.keys()):
+			field_dict[name] = QLabel(name)
+			row, col = divmod(i, 2)
+
+			if col == 0:
+				grid.addWidget(field_dict[name], row, col)
+
+			if col == 1:
+				col = col + 1
+				grid.addWidget(field_dict[name], row, col)
+
+			if col == 0 or col == 2:
+				grid.addWidget(self.field_label_dict[name], row, col + 1)
+
+		group_box1.setLayout(grid)
+
+		for key, val in self.field_label_dict.items():
+			val.textChanged.connect(self.on_text_changed)
+		
+		self.layout2 = QHBoxLayout()
 		self.layout2.addWidget(self.cancel_button)
+		self.layout2.addWidget(self.register_button)
 
-		group_box1.setLayout(self.layout1)
 		group_box2.setLayout(self.layout2)
 
-		hbox_layout = QHBoxLayout()
+		vbox_layout = QVBoxLayout()
 
-		hbox_layout.addWidget(group_box1)
-		hbox_layout.addWidget(group_box2)
+		vbox_layout.addWidget(group_box1)
+		vbox_layout.addWidget(group_box2)
 
-
-		self.setLayout(hbox_layout)
+		self.setLayout(vbox_layout)
 		self.first_name_field.setFocus()
 
 	def on_text_changed(self):
@@ -437,16 +453,17 @@ class NewDeliverer(QWidget):
 		self.email = self.email_field.text().lower()
 		self.confirmation_code = self.confirmation_code_field.text()
 
-		code_query = "select user_codes from system_info where system_id = 1;"
+		code_query = "select user_codes from systeminformation where system_id = 0;"
 		cursor = connection.cursor()
 		cursor.execute(code_query)
+		user_code = str(cursor.fetchone()['user_codes'])
 
 		try:
-			if len(self.first_name) < 2:
+			if len(self.first_name) < fname_min_len:
 				self.error_window = LoginMessage('first_name_length')
 				self.error_window.show()
 				return
-			elif len(self.last_name) < 2:
+			elif len(self.last_name) < lname_min_len:
 				self.error_window = LoginMessage('last_name_length')
 				self.error_window.show()
 				return
@@ -470,13 +487,13 @@ class NewDeliverer(QWidget):
 				self.error_window = LoginMessage('invalid_email')
 				self.error_window.show()
 				return
-			elif self.confirmation_code != cursor.fetchone()['user_codes']:
+			elif self.confirmation_code != user_code:
 				self.error_window = LoginMessage('confirmation_code')
 				self.error_window.show()
 				return
 
 			cursor = connection.cursor()
-			check_query = "select * from user where username = '{}'".format(self.username)  #check to see if username already exists
+			check_query = "select * from userr where username = '{}'".format(self.username)  #check to see if username already exists
 			cursor.execute(check_query)
 
 			existing_user_row_count = cursor.rowcount
@@ -485,7 +502,7 @@ class NewDeliverer(QWidget):
 				self.error_window.show()
 				return
 
-			create_user = "insert into user values ('{}', '{}', '{}', '{}', 'deliverer', '{}');".format(self.first_name, self.last_name, self.username, self.password, self.email)
+			create_user = "insert into userr values ('{}', '{}', '{}', '{}', '{}', '{}');".format(self.username, self.password, 'deliverer', self.email, self.first_name, self.last_name)
 			
 			cursor.execute(create_user)
 			connection.commit()
@@ -520,7 +537,7 @@ class NewManager(QWidget):
 		self.phone_field = QLineEdit()
 
 	
-		store_query = "select store_name, house_number, street, address_id from grocery_store natural join addresses;"
+		store_query = "select store_name, house_number, street, address_id from grocerystore natural join address where address_id = id;"
 		cursor.execute(store_query)
 		store_address_dict_list = cursor.fetchall()
 		self.store_address_dict = {'{} - {} {}'.format(store['store_name'], store['house_number'], store['street']): store['address_id'] for store in store_address_dict_list}
@@ -601,16 +618,17 @@ class NewManager(QWidget):
 		self.store_address_id = self.store_address_dict[store]
 
 		confirmation_code = self.confirmation_code_field.text()
-		code_query = "select user_codes from system_info where system_id = 2;"
+		code_query = "select user_codes from systeminformation where system_id = 1;"
 		cursor = connection.cursor()
 		cursor.execute(code_query)
+		user_code = str(cursor.fetchone()['user_codes'])
 
 		try:
-			if len(self.first_name) < 2:
+			if len(self.first_name) < fname_min_len:
 				self.error_window = LoginMessage('first_name_length')
 				self.error_window.show()
 				return
-			elif len(self.last_name) < 2:
+			elif len(self.last_name) < lname_min_len:
 				self.error_window = LoginMessage('last_name_length')
 				self.error_window.show()
 				return
@@ -630,13 +648,13 @@ class NewManager(QWidget):
 				self.error_window = LoginMessage('invalid_email')
 				self.error_window.show()
 				return
-			elif confirmation_code != cursor.fetchall()[0]['user_codes']:
+			elif confirmation_code != user_code:
 				self.error_window = LoginMessage('confirmation_code')
 				self.error_window.show()
 				return
 
 			cursor = connection.cursor()
-			check_query = "select * from user where username = '{}'".format(self.username)  #check to see if username already exists
+			check_query = "select * from userr where username = '{}'".format(self.username)  #check to see if username already exists
 			cursor.execute(check_query)
 
 			existing_user_row_count = cursor.rowcount
@@ -645,7 +663,7 @@ class NewManager(QWidget):
 				self.error_window.show()
 				return
 
-			create_user = "insert into user values ('{}', '{}', '{}', '{}', 'manager', '{}');".format(self.first_name, self.last_name, self.username, self.password, self.email)
+			create_user = "insert into userr values ('{}', '{}', '{}', '{}', '{}', '{}');".format(self.username, self.password, 'manager', self.email, self.first_name, self.last_name)
 		
 			cursor.execute(create_user)
 			connection.commit()		
@@ -713,12 +731,12 @@ class BuyerFunctionality(QWidget):
 		self.close()	
 
 	def accept_acct_info(self):
-		self.acct_info = DelivererAcctInfo(self.username)
+		self.acct_info = BuyerAcctInfo(self.username)
 		self.acct_info.show()
 		self.close()
 
 	def accept_payment_methods(self):
-		self.payment_methods = PaymentMethods('buyer_func', self.username)
+		self.payment_methods = PaymentMethods(self.username, 'buyer_func')
 		self.payment_methods.show()
 		self.close()
 
@@ -734,10 +752,15 @@ class StoreList(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.username = username
 
-		self.query  = "select store_name as 'Store', CONCAT (house_number, ' ', street) as 'Address' from grocery_store natural join addresses;"
+		self.query  = "select store_name as 'Store', CONCAT (house_number, ' ', street) as 'Address', phone as 'Phone', CONCAT (opening_time, ' - ', closing_time) as 'Hours Today' from grocerystore natural join address where address_id = id;"
 		self.tabledata = tablemaker(self.query)
 		column_headers = self.tabledata[0]
 		rows = self.tabledata[1]
+
+		print('figure out how to get store_id and give it to next screen')
+
+		for row in self.tabledata:
+			print(row)
 
 		self.table = QTableWidget(len(rows), len(rows[0]), self)
 		self.table.horizontalHeader().setStretchLastSection(True)
@@ -815,6 +838,7 @@ class StoreHomepage(QWidget):
 
 		self.username = username
 		self.store_id = store_id
+		print('figure out store_id')
 
 		self.find_item = QPushButton('Find Item')
 		self.view_cart_button = QPushButton('View Cart')
@@ -871,6 +895,7 @@ class FindItem(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.username = username
 		self.store_id = store_id
+		print('figure out store_id')
 				
 		self.back_button = QPushButton('Back')
 		self.checkout_button = QPushButton('Checkout')
@@ -910,6 +935,8 @@ class FindItem(QWidget):
 		return show_table
 
 	def checkout(self):
+		self.order_id = 5
+		print('figure out order_id')
 		self.check_out = Checkout(self.username, self.order_id)
 		self.check_out.show()
 		self.close()
@@ -1017,8 +1044,8 @@ class Cart(QWidget):
 		self.setWindowTitle('Cart')
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.username = username
-		# self.order_id = order_id
-		# self.store_id = store_id
+		self.order_id = 5
+		self.store_id = 5
 
 		self.query  = "select item_name as Item, listed_price as Price, quantity as Number from item;"
 		self.tabledata = tablemaker(self.query)
@@ -1107,112 +1134,164 @@ class Cart(QWidget):
 		self.close()
 
 	def accept_checkout(self):
-		self.checkout_window = Checkout(self.username)# self.order_id)
+		self.checkout_window = Checkout(self.username, self.order_id)
 		self.checkout_window.show()
 		self.close()
 		
 class BuyerAcctInfo(QWidget):
 	def __init__(self, username):
 		super(BuyerAcctInfo, self).__init__()
-
 		self.username = username
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Account Information')
 
-		user_info_query = "select * from user where username = '{}';".format(self.username)
+		user_info_query = "select * from userr where username = '{}';".format(self.username)
 		cursor = connection.cursor()
 		cursor.execute(user_info_query)
 		user_info = cursor.fetchone()
 
 		buyer_info_query = "select * from buyer where username = '{}';".format(self.username)
-		cursor = connection.cursor()
 		cursor.execute(buyer_info_query)
 		buyer_info = cursor.fetchone()
 
+		address_query = "select CONCAT(house_number, ' ', street) as 'address', city, state, zip_code from address natural join buyer where address_id = id and username = '{}';".format(self.username)
+		cursor.execute(address_query)
+		address_info = cursor.fetchone()
+
 		self.first_name_field = QLineEdit(user_info['first_name'])
+		self.last_name_field = QLineEdit(user_info['last_name'])
 		self.username_field = QLineEdit(self.username)
+		self.phone_field = QLineEdit(str(buyer_info['phone']))
 		self.store_address = QLineEdit()
 		self.email_field = QLineEdit(user_info['email'])
 		self.prefered_card = QLineEdit()
-		self.address_field = QLineEdit(buyer_info['address'])
-		self.city_field = QLineEdit(buyer_info['city'])
-
-		store_query = "select * from store;"
+		self.routing_number_field = QLineEdit()
+		self.address_field = QLineEdit(str(address_info['address']))
+		self.city_field = QLineEdit(address_info['city'])
+		store_query = "select store_name, concat(house_number, ' ', street) as 'address' from grocerystore natural join address where address_id = id;"
 		cursor.execute(store_query)
 		store_list = [entry['store_name'] + ' - ' + entry['address'] for entry in cursor.fetchall()]
+		self.store_field = QComboBox()
+		self.store_field.addItems(store_list)
+		self.state_field = QLineEdit(address_info['state'])
+		self.zip_field = QLineEdit(str(address_info['zip_code']))
 
-		self.last_name_field = QLineEdit(user_info['last_name'])
-		self.phone_field = QLineEdit(buyer_info['phone'])
-		self.state_field = QLineEdit(buyer_info['state'])
-		self.zip_field = QLineEdit(buyer_info['zip'])
+		self.field_label_dict = {'First Name: ': self.first_name_field, 'Last Name: ': self.last_name_field, 'Username: ': self.username_field,
+								  'Phone: ': self.phone_field, 'Preferred Grocery Store: ': self.store_field, 'Address: ': self.address_field, 'City: ': self.city_field,
+								 'State: ': self.state_field, 'Zip Code: ': self.zip_field, 'Email: ': self.email_field, 'Preferred Credit Card Number: ': self.prefered_card, 'Routing Number: ': self.routing_number_field}
 
-		group_box1 = QGroupBox('Buyer Information')
-		group_box2 = QGroupBox(' ')
+		group_box1 = QGroupBox('Buyer Account Information')
+		grid = QGridLayout()
 
-		self.layout1 = QFormLayout()
-		self.layout1.addRow(QLabel('First Name: '), self.first_name_field)
-		self.layout1.addRow(QLabel('Username: '), self.username_field)
-		self.layout1.addRow(QLabel('Grocery Store Address: '),self.store_address)
-		self.layout1.addRow(QLabel('Email: '), self.email_field)
-		self.layout1.addRow(QLabel('Preferred Credit Card: '), self.prefered_card)
+		field_dict = {}
+		for i, name in enumerate(self.field_label_dict.keys()):
+			field_dict[name] = QLabel(name)
+			row, col = divmod(i, 2)
 
+			if col == 0:
+				grid.addWidget(field_dict[name], row, col)
 
-		self.layout2 = QFormLayout()
-		self.layout2.addRow(QLabel('Last Name:'),self.last_name_field)
-		self.layout2.addRow(QLabel('Phone Number: '), self.phone_field)
-		self.layout2.addRow(QLabel('Address: '), self.address_field)
-		self.layout2.addRow(QLabel('City: '), self.city_field)
-		self.layout2.addRow(QLabel('State: '), self.state_field)
-		self.layout2.addRow(QLabel('Zip Code: '), self.zip_field)
+			if col == 1:
+				col = col + 1
+				grid.addWidget(field_dict[name], row, col)
+
+			if col == 0 or col == 2:
+				grid.addWidget(self.field_label_dict[name], row, col + 1)
+
+		group_box1.setLayout(grid)
 
 		self.first_name_field.setEnabled(False)
 		self.last_name_field.setEnabled(False)
 		self.username_field.setEnabled(False)
 
-		buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-		buttons.accepted.connect(self.update_info)
-		buttons.rejected.connect(self.reject)
 
+		hbox = QHBoxLayout()
+		self.back_button = QPushButton('Back')
 		self.delete_acct = QPushButton('Delete Account')
+		self.update_button = QPushButton('Update')
+
+		self.back_button.clicked.connect(self.close_win)
 		self.delete_acct.clicked.connect(self.check_delete_acct)
-
-		self.layout2.addWidget(buttons)
-		self.layout2.addWidget(self.delete_acct)
-
-		group_box1.setLayout(self.layout1)
-		group_box2.setLayout(self.layout2)
-
-		hbox_layout = QHBoxLayout()
-
-		hbox_layout.addWidget(group_box1)
-		hbox_layout.addWidget(group_box2)
+		self.update_button.clicked.connect(self.update_info)
 
 
-		self.setLayout(hbox_layout)
+		hbox.addWidget(self.back_button)
+		hbox.addWidget(self.delete_acct)
+		hbox.addWidget(self.update_button)
+		group_box2 = QGroupBox()
+		group_box2.setLayout(hbox)
+
+		vbox_layout = QVBoxLayout()
+
+		vbox_layout.addWidget(group_box1)
+		vbox_layout.addWidget(group_box2)
+
+
+		self.setLayout(vbox_layout)
 		self.first_name_field.setFocus()
 
 	def update_info(self):
+
+		for field in self.field_label_dict:
+			try:
+				if len(self.field_label_dict[field].text()) == 0:
+					msg = QMessageBox()
+					msg.setIcon(QMessageBox.Information)
+					msg.setWindowTitle('Buyer Information')
+					msg.setText("Please complete all fields!")
+					msg.setStandardButtons(QMessageBox.Ok)
+					msg.exec_()
+					return
+			except:
+				x=2
+
 		email = self.email_field.text()
+		phone = self.phone_field.text()
+		state = self.state_field.text().title()
+		address = self.address_field.text()
+		address_split = address.split()
+		zip_code = self.zip_field.text()
+		city = self.city_field.text()
+		preferred_store = self.store_field.currentText()
+
+		house_number = address_split[0]
+		del address_split[0]
+
+		street = ''
+		for i, el in enumerate(address_split):
+			street += el
+			if i != len(address_split) - 1:
+				street += ' '
+		street = street.title()
 
 		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
 			self.error_window = LoginMessage('invalid_email')
 			self.error_window.show()
 			return
+		elif len(phone) != 10 or not phone.isdigit():
+			self.error_window = LoginMessage('phone')
+			self.error_window.show()
+			return		
+		elif len(zip_code) != 5 or not zip_code.isdigit():
+			self.error_window = LoginMessage('zip_code')
+			self.error_window.show()
+			return
+		elif state not in state_list:
+			self.error_window = LoginMessage('state')
+			self.error_window.show()
+			return
 
 
-		phone = self.phone_field.text()
-		state = self.state_field.text()
-		address = self.address_field.text()
-		street = 'street'
-		zip = self.zip_field.text()
-		city = self.city_field.text()
 
-		update_user = "update user set email = '{}' where username = '{}';".format(email, self.username)
-		update_buyer = "update buyer set phone = '{}', state = '{}', address = '{}', street = '{}', zip = '{}', city = '{}' where username = '{}';".format(phone, state, address, street, zip, city, self.username)
+
+		update_user = "update userr set email = '{}' where username = '{}';".format(email, self.username)
+		update_buyer = "update buyer set phone = {} where username = '{}';".format(phone, self.username)
+		update_address = "update address set house_number = '{}', street = '{}', city = '{}', state = '{}', zip_code = '{}' where id = (select address_id from buyer where username = '{}');".format(house_number, street, city, state, zip_code, self.username)
 
 		cursor = connection.cursor()
 		cursor.execute(update_user)
 		cursor.execute(update_buyer)
+		cursor.execute(update_address)
 		connection.commit()
 
 		update_msg = QMessageBox()
@@ -1220,10 +1299,10 @@ class BuyerAcctInfo(QWidget):
 		update_msg.setWindowTitle('Buyer Information')
 		update_msg.setText("Information Updated!")
 		update_msg.setStandardButtons(QMessageBox.Ok)
-		update_msg.accepted.connect(self.reject)
+		update_msg.accepted.connect(self.close_win)
 		update_msg.exec_()
 
-	def reject(self):
+	def close_win(self):
 		self.buyer_func = BuyerFunctionality(self.username)
 		self.buyer_func.show()
 		self.close()
@@ -1239,7 +1318,7 @@ class BuyerAcctInfo(QWidget):
 	def accept_delete_acct(self):
 		query = "delete from buyer where username = '{}';".format(self.username)
 		cursor.execute(query)
-		query = "delete from user where username = '{}';".format(self.username)
+		query = "delete from userr where username = '{}';".format(self.username)
 		cursor.execute(query)
 		print('delete account')
 		self.login = Login()
@@ -1253,7 +1332,7 @@ class OrderHistory(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 
 		self.username = username
-		self.query  = "select username, password, first_name as 'First Name', last_name as 'Last Name' from user;"
+		self.query  = "select username, password, first_name as 'First Name', last_name as 'Last Name' from userr;"
 
 		self.tabledata = tablemaker(self.query)
 		column_headers = self.tabledata[0]
@@ -1329,7 +1408,7 @@ class PaymentMethods(QWidget):
 
 		self.parent_type = parent_type
 		self.username = username
-		self.query  = "select payment_name as 'Payment Method', acct_number as 'Account Number', routing_number as 'Routing Number', if(default_payment, 'Yes', 'No') as 'Default' from payments where username = '{}';".format(self.username)
+		self.query  = "select payment_name as 'Payment Method', account_number as 'Account Number', routing_number as 'Routing Number' from payments where username = '{}';".format(self.username)
 
 		self.tabledata = tablemaker(self.query)
 		column_headers = self.tabledata[0]
@@ -1353,15 +1432,18 @@ class PaymentMethods(QWidget):
 		        self.table.setItem(i, j, item)
 
 		self.back = QPushButton('Back')
+		self.diff_payment = QPushButton('Use Different Payment')
 		self.confirm_order = QPushButton('Confirm Payment Method')
 		self.confirm_order.setEnabled(False)
 
 		self.back.clicked.connect(self.accept_back)
+		self.diff_payment.clicked.connect(self.accept_diff_payment)
 		self.confirm_order.clicked.connect(self.accept_confirm)
 
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
+		hbox_layout.addWidget(self.diff_payment)
 		hbox_layout.addWidget(self.confirm_order)
 
 		group_box = QGroupBox()
@@ -1385,18 +1467,110 @@ class PaymentMethods(QWidget):
 			# self.checkout = Checkout()
 			# self.checkout.show()
 			print('RETURN TO CHECKOUT')
+		self.buyer_func = BuyerFunctionality(self.username)
+		self.buyer_func.show()
 		self.close()
+
+
+	def accept_diff_payment(self):
+		self.new_payment = NewPayment(self.username)
+		self.new_payment.show()
 
 	def accept_confirm(self):
 		print('CONFIRM ORDER')
 		print("OPEN RECEIPT")
+	
+class NewPayment(QWidget):
+	def __init__(self, username):
+		super(NewPayment, self).__init__()
+		self.setWindowTitle('New Payment')
+		self.setWindowIcon(QIcon('groceries'))
+		self.username = username
+
+		self.payment_name_field = QLineEdit()
+		self.acct_number_field = QLineEdit()
+		self.routing_number_field = QLineEdit()
+		self.default_payment_field = QComboBox()
+		self.default_payment_field.addItems(['Yes', 'No'])
+
+		self.payment_name_field.textChanged.connect(self.on_text_changed)
+		self.acct_number_field.textChanged.connect(self.on_text_changed)
+		self.routing_number_field.textChanged.connect(self.on_text_changed)
+
+		group_box = QGroupBox()
+		layout1 = QFormLayout()
+		layout1.addRow(QLabel('Payment Name: '), self.payment_name_field)
+		layout1.addRow(QLabel('Account Number: '), self.acct_number_field)
+		layout1.addRow(QLabel('Routing Number: '), self.routing_number_field)
+		layout1.addRow(QLabel('Default Payment: '), self.default_payment_field)
+
+		group_box.setLayout(layout1)
+
+		hbox = QHBoxLayout()
+		self.back_button = QPushButton('Back')
+		self.add_payment_button = QPushButton('Add Payment')
+		self.add_payment_button.setEnabled(False)
+
+		self.back_button.clicked.connect(self.back)
+		self.add_payment_button.clicked.connect(self.add_payment)
+
+		hbox.addWidget(self.back_button)
+		hbox.addWidget(self.add_payment_button)
+		group_box2 = QGroupBox()
+		group_box2.setLayout(hbox)
+
+		vbox = QVBoxLayout()
+
+		vbox.addWidget(group_box)
+		vbox.addWidget(group_box2)
+
+		self.setLayout(vbox)
+		self.setGeometry(700,200,400,200)
+
+
+	def on_text_changed(self):
+		fields = [bool(self.payment_name_field.text()), bool(self.acct_number_field.text()), bool(self.routing_number_field.text())]
+		self.add_payment_button.setEnabled(sum(fields) == len(fields))
+
+	def back(self):
+		self.close()
+
+	def add_payment(self):
+		payment_name = self.payment_name_field.text()
+		account_number = self.acct_number_field.text()
+		routing_number = self.routing_number_field.text()
+
+		name_check_query = "select * from payments where payment_name = '{}' and username = '{}';".format(payment_name, self.username)
+		cursor.execute(name_check_query)
+		payment_name_count = cursor.rowcount
+
+		if payment_name_count != 0:
+			unique_payment_msg = LoginMessage('unique_payment')
+			unique_payment_msg.show()
+			return
+
+		elif len(account_number) != 9:# or not account_number.isdigit():
+			acct_len_msg = LoginMessage('acct_num_len')
+			acct_len_msg.show()
+			return
+
+		elif len(routing_number) != 9 or not routing_number.isdigit():
+			routing_len_msg = LoginMessage('routing_len')
+			routing_len_msg.show()
+			return
+
+
+		print('default?')
+		# add_payment_query = "insert into payments values ('{}', '{}', '{}', '{}');".format(self.username, payment_name, account_number, routing_number)
+		# cursor.execute(add_payment_query)
+		# connection.commit()
 
 class Checkout(QWidget):
-	def __init__(self, username):#, order_id):
+	def __init__(self, username, order_id):
 		super(Checkout, self).__init__()
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Checkout')
-		# self.order_id = order_id           
+		self.order_id = order_id           
 		self.username = username
 
 		payment_query = "select payment_name from payments where username = '{}';".format(self.username)
@@ -1405,7 +1579,7 @@ class Checkout(QWidget):
 
 		time_list = ['ASAP', '1 hour', '2 hours', '5 hours', '10 hours', '12 hours', '24 hours']
 
-		total_price_query = "select sum(number*price) as total_price from cart;"
+		total_price_query = "select sum(quantity) as total_price from selectitem where order_id = '87897';"
 		cursor.execute(total_price_query)
 		total_price = cursor.fetchone()['total_price']
 
@@ -1519,12 +1693,12 @@ class DelivererAcctInfo(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Account Information')
 
-		user_info_query = "select * from user where username = '{}';".format(self.username)
+		user_info_query = "select * from userr where username = '{}';".format(self.username)
 		cursor = connection.cursor()
 		cursor.execute(user_info_query)
 		user_info = cursor.fetchone()
 
-		deliverer_info_query = "select * from user where username = '{}';".format(self.username)
+		deliverer_info_query = "select * from userr where username = '{}';".format(self.username)
 		cursor = connection.cursor()
 		cursor.execute(deliverer_info_query)
 		deliverer_info = cursor.fetchone()
@@ -1620,7 +1794,7 @@ class DelivererAcctInfo(QWidget):
 	def accept_delete_acct(self):
 		query = "delete from buyer where username = '{}';".format(self.username)
 		cursor.execute(query)
-		query = "delete from user where username = '{}';".format(self.username)
+		query = "delete from userr where username = '{}';".format(self.username)
 		cursor.execute(query)
 		print('delete account')
 		self.login = Login()
@@ -1634,7 +1808,7 @@ class Assigments(QWidget):
 		self.setWindowTitle('Assigments')
 		self.setWindowIcon(QIcon('groceries.png'))
 
-		self.query  = "select first_name, last_name from user;"
+		self.query  = "select first_name, last_name from userr;"
 		self.tabledata = tablemaker(self.query)
 		column_headers = self.tabledata[0]
 		rows = self.tabledata[1]
@@ -1858,23 +2032,23 @@ class RevenueReport(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.username = username
 
-		store_info_query = "select store_name as 'Store Name: ', Y.quantity as 'Number of Items Sold: ', CONCAT('$', (listed_price * Y.quantity)) as 'Revenue: ', CONCAT('$', ((listed_price - wholesale_price) * Y.quantity)) as 'Profit: ' from manages natural join (select * from order_from natural join (select * from select_item natural join item) X) Y join (select store_name, address_id from grocery_store) Z where manager_username = '{}' and store_address = address_id;".format(self.username)
+		store_info_query = "select store_name as 'Store Name: ', Y.quantity as 'Number of Items Sold: ', CONCAT('$', (listed_price * Y.quantity)) as 'Revenue: ', CONCAT('$', ((listed_price - wholesale_price) * Y.quantity)) as 'Profit: ' from manages natural join (select * from orderfrom natural join (select * from selectitem natural join item) X) Y join (select store_name, address_id from grocerystore) Z where username = '{}' and store_address = address_id;".format(self.username)
 		cursor.execute(store_info_query)
 		info = cursor.fetchone()
 
 		if not info:
-			store_info_query = "select store_name as 'Store Name: ' from manages natural join grocery_store where store_address = address_id and manager_username = '{}';".format(self.username)
+			store_info_query = "select store_name as 'Store Name: ' from manages natural join grocerystore where store_address = address_id and username = '{}';".format(self.username)
 			cursor.execute(store_info_query)
 			info = cursor.fetchone()
 			info['Number of Items Sold: '] = 0
 			info['Revenue: '] = '$0'
 			info['Profit: '] = '$0'
 
-		layout = QFormLayout()
-		for key in info:
-			field = QLineEdit(str(info[key]))
-			layout.addRow(QLabel(str(key)), field)
-			field.setEnabled(False)
+		layout = QGridLayout()
+		for i, key in enumerate(info.keys()):
+			row, col = divmod(i, 1)
+			layout.addWidget(QLabel(str(key)), row, col)#, field)
+			layout.addWidget(QLabel(str(info[key])), row, col + 1)
 
 		group_box = QGroupBox()
 		group_box.setLayout(layout)
@@ -1886,6 +2060,8 @@ class RevenueReport(QWidget):
 		vbox.addWidget(group_box)
 		vbox.addWidget(back_button)
 		self.setLayout(vbox)
+
+		self.setGeometry(740,200,400,100)
 
 	def back(self):
 		self.mgr_func = ManagerFunctionality(self.username)
@@ -1900,7 +2076,7 @@ class ManagerAcctInfo(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Account Information')
 
-		manager_info_query = "select first_name, last_name, email, store_name, CONCAT(house_number, ' ', street) as 'store_address' from user natural join (select store_name, address_id from grocery_store natural join manages where manager_username = '{}' and store_address = address_id) X natural join addresses where username = '{}';".format(self.username, self.username)
+		manager_info_query = "select first_name, last_name, email, store_name, CONCAT(house_number, ' ', street) as 'store_address' from userr natural join (select store_name, address_id from grocerystore natural join manages where username = '{}' and store_address = address_id) X natural join address where username = '{}';".format(self.username, self.username)
 		cursor = connection.cursor()
 		cursor.execute(manager_info_query)
 		manager_info = cursor.fetchone()
@@ -2008,7 +2184,7 @@ class ManagerAcctInfo(QWidget):
 		msg.exec_()
 
 	def accept_delete_acct(self):
-		query = "delete from user where username = '{}';".format(self.username)
+		query = "delete from userr where username = '{}';".format(self.username)
 		cursor.execute(query)
 		self.login = Login()
 		self.login.show()
@@ -2302,13 +2478,8 @@ def tablemaker(query):
 		return (column_headers, rows)
 
 
-
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
- 
-    login = DbLogin()
+	app = QApplication(sys.argv)
+	login = DbLogin()
 
-    sys.exit(app.exec_())
-
-
-
+	sys.exit(app.exec_())
