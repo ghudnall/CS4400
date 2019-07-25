@@ -123,13 +123,13 @@ SELECT * FROM
 (
 SELECT O.order_id, O.order_placed_date, IF(is_delivered = 1, 'Yes', 'No') AS 'is_delivered', GS.store_name
 FROM orderedBy OB, orderr O, deliveredby DB, grocerystore GS, orderFROM OFR
-WHERE OB.buyer_username = 'severelucy' AND O.order_id = DB.order_id AND DB.order_id = OB.order_id AND GS.store_id = OFR.store_address_id AND OFR.order_id = OB.order_id
+WHERE OB.buyer_username = 'wellmadeconkey' AND O.order_id = DB.order_id AND DB.order_id = OB.order_id AND GS.store_id = OFR.store_address_id AND OFR.order_id = OB.order_id
 ) A
 natural join
 (
 SELECT O.order_id, sum(SI.quantity * I.listed_price) AS 'Total Price', sum(SI.quantity) AS 'Total quantity'
 FROM orderr O, selectitem SI, item I, orderedby OB
-WHERE O.order_id = SI.order_id AND SI.item_id = I.item_id AND O.order_id = OB.order_id AND OB.buyer_username = 'severelucy'
+WHERE O.order_id = SI.order_id AND SI.item_id = I.item_id AND O.order_id = OB.order_id AND OB.buyer_username = 'wellmadeconkey'
 group by O.order_id
 ) B
 ;

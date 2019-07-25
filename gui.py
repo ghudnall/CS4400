@@ -568,7 +568,6 @@ class NewDeliverer(QWidget):
 			self.close()
 
 		except Exception as e:
-			print(f"Fuck")
 			print(e)
 			qApp.quit()
 
@@ -596,8 +595,6 @@ class NewManager(QWidget):
 		cursor.execute(store_query)
 		store_address_dict_list = cursor.fetchall()
 		self.store_address_dict = {'{} - {} {}'.format(store['store_name'], store['house_number'], store['street']): store['address_id'] for store in store_address_dict_list}
-
-		print(self.store_address_dict)
 
 		self.store_field = QComboBox()  #add list to drop down
 		self.store_field.addItems(sorted(self.store_address_dict.keys()))
@@ -821,21 +818,15 @@ class StoreList(QWidget):
 		self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
 		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
 		self.select = QPushButton('Select')
 
 		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
 		self.select.clicked.connect(self.accept_select)
 
 		button_group_box = QGroupBox()
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
 		hbox_layout.addWidget(self.select)
 
 		button_group_box.setLayout(hbox_layout)
@@ -867,12 +858,6 @@ class StoreList(QWidget):
 		self.buyer_func.show()
 		self.close()
 
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print("NEXT")
-
 	def accept_select(self):
 		indexes = self.table.selectionModel().selectedRows()
 		for index in indexes:
@@ -887,7 +872,7 @@ class StoreList(QWidget):
 		order_id = int(cursor.fetchone()['max_id']) + 1
 
 		order_info_dict = {'username': self.username, 'order_id': order_id, 'store_id': store_id, 'delivery_instructions': None, 'delivery_time': None, 'order_placed_date': None, 
-							'order_placed_time': None, 'deliverer_username': 'chivalrouspotatoes', 'is_delivered': 0, 'delivery_time': None, 'delivery_date': None, 'items': {}, 'price': {},
+							'order_placed_time': None, 'deliverer_username': 'chivalrouspotatoes', 'delivery_time': None, 'delivery_date': None, 'items': {}, 'price': {},
 							'description': {}}
 
 		self.store_homepage = StoreHomepage(order_info_dict)
@@ -946,8 +931,9 @@ class StoreHomepage(QWidget):
 		self.close()
 
 	def accept_cancel_order(self):
-		print("CANCEL ORDER")
-		pass
+		self.buyer_func = BuyerFunctionality(self.order_info_dict['username'])
+		self.buyer_func.show()
+		self.close()
 	def accept_back(self):
 		self.storelist = StoreList(self.username)
 		self.storelist.show()
@@ -959,8 +945,6 @@ class FindItem(QWidget):
 		self.setWindowTitle('Find Item')
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.order_info_dict = order_info_dict
-
-		print('figure out store_id')
 				
 		self.back_button = QPushButton('Back')
 		self.checkout_button = QPushButton('Checkout')
@@ -1032,14 +1016,10 @@ class ItemTable(QWidget):
 		self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
 		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
 		self.add_to_cart = QPushButton('Add to Cart')
 		self.checkout_button = QPushButton('Checkout')
 
 		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
 		self.add_to_cart.clicked.connect(self.accept_add_to_cart)
 		self.checkout_button.clicked.connect(self.accept_checkout)
 
@@ -1047,8 +1027,6 @@ class ItemTable(QWidget):
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
 		hbox_layout.addWidget(self.add_to_cart)
 		hbox_layout.addWidget(self.checkout_button)
 
@@ -1085,12 +1063,6 @@ class ItemTable(QWidget):
 		self.buyer_func.show()
 		self.close()
 
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print("NEXT")
-
 	def accept_add_to_cart(self):
 		indexes = self.table.selectionModel().selectedRows()
 		for index in indexes:
@@ -1119,9 +1091,11 @@ class AddToCart(QWidget):
 		self.category = category
 
 		if self.item_name in self.order_info_dict['items'].keys():
-			num_in_cart = self.order_info_dict['items'][self.item_name]
+			num_in_cart = int(self.order_info_dict['items'][self.item_name])
 		else:
 			num_in_cart = 0
+
+		num_avail = int(self.item_quant) - num_in_cart
 
 		layout = QVBoxLayout()
 		self.quantity_field = QLineEdit()
@@ -1130,7 +1104,7 @@ class AddToCart(QWidget):
 		buttons.rejected.connect(self.reject)
 
 		layout.addWidget(QLabel('How many of {} would you like to add to your cart?'.format(self.item_name)))
-		layout.addWidget(QLabel('Number in cart: {}'.format(num_in_cart)))
+		layout.addWidget(QLabel('\tNumber in cart: {}'.format(num_in_cart) + ' | Number available: {}'.format(num_avail)))
 		layout.addWidget(self.quantity_field)
 		layout.addWidget(buttons)
 
@@ -1140,8 +1114,8 @@ class AddToCart(QWidget):
 		if not self.quantity_field.text().isdigit() or int(self.quantity_field.text()) > int(self.item_quant):
 			msg = QMessageBox()
 			msg.setIcon(QMessageBox.Information)
-			msg.setWindowTitle('Add to cart')
-			msg.setText("Total quantity must be less than {}.".format(self.item_quant))
+			msg.setWindowTitle('Add To Cart')
+			msg.setText('Total quantity must be less than {}.'.format(self.item_quant))
 			msg.setStandardButtons(QMessageBox.Ok)
 			msg.exec_()
 			return
@@ -1151,8 +1125,8 @@ class AddToCart(QWidget):
 				if int(self.quantity_field.text()) + self.order_info_dict['items'][self.item_name] > int(self.item_quant):
 					msg = QMessageBox()
 					msg.setIcon(QMessageBox.Information)
-					msg.setWindowTitle('Add to cart')
-					msg.setText("Quantity must be less than {}.".format(self.item_quant))
+					msg.setWindowTitle('Add To Cart')
+					msg.setText('Total quantity must be less than {}.'.format(self.item_quant))
 					msg.setStandardButtons(QMessageBox.Ok)
 					msg.exec_()
 					return
@@ -1163,7 +1137,6 @@ class AddToCart(QWidget):
 				self.order_info_dict['price'][self.item_name] = float(str(self.item_price))
 				self.order_info_dict['description'][self.item_name] = self.description
 
-		print(self.order_info_dict)
 		self.item_table = ItemTable(self.order_info_dict, self.category)
 		self.item_table.show()
 		self.close()
@@ -1185,7 +1158,6 @@ class Cart(QWidget):
 
 		for item in self.order_info_dict['items']:
 			row = [item, self.order_info_dict['description'][item], str(self.order_info_dict['items'][item]), '$' + str(self.order_info_dict['price'][item])]
-			print(row)
 			rows.append(row)
 
 		self.total_items = len(rows)
@@ -1194,14 +1166,10 @@ class Cart(QWidget):
 			rows = [['No items in cart.']]
 
 		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
 		self.delete_item = QPushButton('Delete Item')
 		self.checkout = QPushButton('Checkout')		
 
 		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
 		self.delete_item.clicked.connect(self.accept_delete_item)
 		self.checkout.clicked.connect(self.accept_checkout)
 
@@ -1215,8 +1183,6 @@ class Cart(QWidget):
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
 		hbox_layout.addWidget(self.delete_item)
 
 		button_group_box.setLayout(hbox_layout)
@@ -1255,12 +1221,6 @@ class Cart(QWidget):
 		self.storehome = StoreHomepage(self.order_info_dict)
 		self.storehome.show()
 		self.close()
-
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print("NEXT")
 
 	def accept_delete_item(self):
 		indexes = self.table.selectionModel().selectedRows()
@@ -1357,8 +1317,6 @@ class BuyerAcctInfo(QWidget):
 
 		group_box1.setLayout(grid)
 
-		self.first_name_field.setEnabled(False)
-		self.last_name_field.setEnabled(False)
 		self.username_field.setEnabled(False)
 
 
@@ -1412,6 +1370,8 @@ class BuyerAcctInfo(QWidget):
 		city = self.city_field.text()
 		preferred_store = self.store_field.currentText()
 		payment_name = self.preferred_card.currentText()
+		fname = self.first_name_field.text()
+		lname = self.last_name_field.text()
 
 		house_number = address_split[0]
 		del address_split[0]
@@ -1423,6 +1383,15 @@ class BuyerAcctInfo(QWidget):
 				street += ' '
 		street = street.title()
 
+
+		if len(fname) < fname_min_len:
+			self.error_window = LoginMessage('first_name_length')
+			self.error_window.show()
+			return
+		elif len(lname) < lname_min_len:
+			self.error_window = LoginMessage('last_name_length')
+			self.error_window.show()
+			return
 		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
 			self.error_window = LoginMessage('invalid_email')
 			self.error_window.show()
@@ -1440,10 +1409,7 @@ class BuyerAcctInfo(QWidget):
 			self.error_window.show()
 			return
 
-
-
-
-		update_user = "update userr set email = '{}' where username = '{}';".format(email, self.username)
+		update_user = "update userr set first_name = '{}', last_name = '{}', email = '{}' where username = '{}';".format(fname, lname, email, self.username)
 		update_buyer = "update buyer set phone = {}, default_payment = '{}' where username = '{}';".format(phone, payment_name, self.username)
 		update_address = "update address set house_number = '{}', street = '{}', city = '{}', state = '{}', zip_code = '{}' where id = (select address_id from buyer where username = '{}');".format(house_number, street, city, state, zip_code, self.username)
 
@@ -1479,7 +1445,6 @@ class BuyerAcctInfo(QWidget):
 		cursor.execute(query)
 		query = "delete from userr where username = '{}';".format(self.username)
 		cursor.execute(query)
-		print('delete account')
 		self.login = Login()
 		self.login.show()
 		self.close()
@@ -1491,20 +1456,21 @@ class OrderHistory(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 
 		self.username = username
+
 		self.query  = "SELECT * FROM \
 						(\
-						SELECT O.order_id, O.order_placed_date, IF(is_delivered = 1, 'Yes', 'No') as 'is_delivered', GS.store_name\
+						SELECT O.order_id as 'Order ID', O.order_placed_date as 'Date', IF(is_delivered = 1, 'Yes', 'No') as 'Delivered', GS.store_name as 'Store Name'\
 						FROM orderedBy OB, orderr O, deliveredby DB, grocerystore GS, orderfrom OFR\
-						WHERE OB.buyer_username = 'severelucy' and O.order_id = DB.order_id and DB.order_id = OB.order_id and GS.store_id = OFR.store_address_id and OFR.order_id = OB.order_id\
+						WHERE OB.buyer_username = '{}' and O.order_id = DB.order_id and DB.order_id = OB.order_id and GS.store_id = OFR.store_address_id and OFR.order_id = OB.order_id\
 						) A\
 						natural join\
 						(\
-						SELECT O.order_id, sum(SI.quantity * I.listed_price) as 'Total Price', sum(SI.quantity) as 'Total quantity'\
+						SELECT O.order_id as 'Order ID', sum(SI.quantity * I.listed_price) as 'Total Price', sum(SI.quantity) as 'Total Quantity'\
 						FROM orderr O, selectitem SI, item I, orderedby OB\
-						WHERE O.order_id = SI.order_id and SI.item_id = I.item_id and O.order_id = OB.order_id and OB.buyer_username = 'severelucy'\
+						WHERE O.order_id = SI.order_id and SI.item_id = I.item_id and O.order_id = OB.order_id and OB.buyer_username = '{}'\
 						group by O.order_id\
 						) B\
-						;"
+						;".format(self.username, self.username)
 
 		self.tabledata = tablemaker(self.query)
 		column_headers = self.tabledata[0]
@@ -1528,21 +1494,15 @@ class OrderHistory(QWidget):
 		        self.table.setItem(i, j, item)
 
 		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
 		self.order_details = QPushButton('View Order Details')
 		self.order_details.setEnabled(False)
 
 		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
 		self.order_details.clicked.connect(self.accept_details)
 
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
 		hbox_layout.addWidget(self.order_details)
 
 		group_box = QGroupBox()
@@ -1563,21 +1523,13 @@ class OrderHistory(QWidget):
 		self.buyer_func.show()
 		self.close()
 
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print('NEXT')
-
 	def accept_details(self):
 		indexes = self.table.selectionModel().selectedRows()
 		for index in indexes:
 			order_id = [self.table.item(index.row(),i).text() for i in range(self.table.columnCount())][0]
-
-		print(order_id)
   
 class PaymentMethods(QWidget):
-	def __init__(self, username, parent_type, store_id, order_id, order_info_dict = None):
+	def __init__(self, username, parent_type, store_id = None, order_id = None, order_info_dict = None):
 		super(PaymentMethods, self).__init__()
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Payment Methods')
@@ -1653,9 +1605,14 @@ class PaymentMethods(QWidget):
 
 
 	def accept_diff_payment(self):
-		self.new_payment = NewPayment(self.username)
-		self.new_payment.show()
-		self.close()
+		if self.parent_type == 'checkout':
+			self.new_payment = NewPaymentCheckout(self.username, self.order_info_dict)
+			self.new_payment.show()
+			self.close()
+		else:
+			self.new_payment = NewPayment(self.username)
+			self.new_payment.show()
+			self.close()
 
 	def accept_confirm(self):
 		order_placed_time = dt.datetime.now().strftime('%H:%M')
@@ -1667,6 +1624,41 @@ class PaymentMethods(QWidget):
 		indexes = self.table.selectionModel().selectedRows()
 		for index in indexes:
 			payment_name = [self.table.item(index.row(),i).text() for i in range(self.table.columnCount())][0]
+
+		order_id = self.order_info_dict['order_id']
+		username = self.order_info_dict['username']
+		store_id = self.order_info_dict['store_id']
+		delivery_instructions = self.order_info_dict['delivery_instructions']
+		delivery_time = self.order_info_dict['delivery_time']
+		order_placed_date = self.order_info_dict['order_placed_date']
+		order_placed_time = self.order_info_dict['order_placed_time']
+		deliverer_username = self.order_info_dict['deliverer_username']
+		is_delivered = 0
+		delivery_date = self.order_info_dict['delivery_date']
+		items = self.order_info_dict['items']
+
+		create_order = "INSERT into orderr values('{}', '{}', '{}', '{}', '{}');".format(order_id, delivery_instructions, delivery_time, order_placed_date, order_placed_time)
+		create_orderedby = "INSERT into orderedby values('{}', '{}');".format(order_id, username)
+		create_deliveredby = "INSERT into deliveredby values ('{}', '{}', '{}', '{}', '{}');".format(order_id, deliverer_username, is_delivered, delivery_time, delivery_date)
+		create_orderfrom = "INSERT into orderfrom values ({}, {});".format(store_id, order_id)
+		cursor.execute(create_order)
+		cursor.execute(create_orderedby)
+		cursor.execute(create_deliveredby)
+		connection.commit()
+		cursor.execute(create_orderfrom)
+
+		for item in items:
+			item_id_query = "SELECT item_id from item where item_name = '{}';".format(item)
+			cursor.execute(item_id_query)
+			item_id = cursor.fetchone()['item_id']
+			quantity_sold = items[item]
+			update_items = "UPDATE item set quantity = quantity - {} where item_name = '{}';".format(quantity_sold, item)
+			cursor.execute(update_items)
+
+			insert_selectitem = "INSERT into selectitem values('{}', '{}', '{}');".format(item_id, quantity_sold, order_id)
+			cursor.execute(insert_selectitem)
+
+		connection.commit()
 		
 		self.receipt_win = Receipt(self.order_info_dict, payment_name)
 		self.receipt_win.show()
@@ -1764,6 +1756,98 @@ class NewPayment(QWidget):
 		self.payment_methods.show()
 		self.close()
 
+class NewPaymentCheckout(QWidget):
+	def __init__(self, username, order_info_dict):
+		super(NewPaymentCheckout, self).__init__()
+		self.setWindowTitle('New Payment')
+		self.setWindowIcon(QIcon('groceries'))
+		self.username = username
+		self.order_info_dict = order_info_dict
+
+		self.payment_name_field = QLineEdit()
+		self.acct_number_field = QLineEdit()
+		self.routing_number_field = QLineEdit()
+		self.default_payment_field = QComboBox()
+		self.default_payment_field.addItems(['Yes', 'No'])
+
+		self.payment_name_field.textChanged.connect(self.on_text_changed)
+		self.acct_number_field.textChanged.connect(self.on_text_changed)
+		self.routing_number_field.textChanged.connect(self.on_text_changed)
+
+		group_box = QGroupBox()
+		layout1 = QFormLayout()
+		layout1.addRow(QLabel('Payment Name: '), self.payment_name_field)
+		layout1.addRow(QLabel('Account Number: '), self.acct_number_field)
+		layout1.addRow(QLabel('Routing Number: '), self.routing_number_field)
+		layout1.addRow(QLabel('Default Payment: '), self.default_payment_field)
+
+		group_box.setLayout(layout1)
+
+		hbox = QHBoxLayout()
+		self.back_button = QPushButton('Back')
+		self.add_payment_button = QPushButton('Add Payment')
+		self.add_payment_button.setEnabled(False)
+
+		self.back_button.clicked.connect(self.back)
+		self.add_payment_button.clicked.connect(self.add_payment)
+
+		hbox.addWidget(self.back_button)
+		hbox.addWidget(self.add_payment_button)
+		group_box2 = QGroupBox()
+		group_box2.setLayout(hbox)
+
+		vbox = QVBoxLayout()
+
+		vbox.addWidget(group_box)
+		vbox.addWidget(group_box2)
+
+		self.setLayout(vbox)
+		self.setGeometry(700,200,400,200)
+
+	def on_text_changed(self):
+		fields = [bool(self.payment_name_field.text()), bool(self.acct_number_field.text()), bool(self.routing_number_field.text())]
+		self.add_payment_button.setEnabled(sum(fields) == len(fields))
+
+	def back(self):
+		self.close()
+
+	def add_payment(self):
+		payment_name = self.payment_name_field.text()
+		account_number = self.acct_number_field.text()
+		routing_number = self.routing_number_field.text()
+
+		name_check_query = "select * from payments where payment_name = '{}' and username = '{}';".format(payment_name, self.username)
+		cursor.execute(name_check_query)
+		payment_name_count = cursor.rowcount
+
+		if payment_name_count != 0:
+			self.unique_payment_msg = LoginMessage('unique_payment')
+			self.unique_payment_msg.show()
+			return
+
+		elif len(account_number) != 9:# or not account_number.isdigit():
+			self.acct_len_msg = LoginMessage('acct_num_len')
+			self.acct_len_msg.show()
+			return
+
+		elif len(routing_number) != 9 or not routing_number.isdigit():
+			self.routing_len_msg = LoginMessage('routing_len')
+			self.routing_len_msg.show()
+			return
+
+		add_payment_query = "insert into payments values ('{}', '{}', '{}', '{}');".format(self.username, payment_name, account_number, routing_number)
+		cursor.execute(add_payment_query)
+		connection.commit()
+
+		if self.default_payment_field.currentText() == 'Yes':
+			update_buyer = "update buyer set default_payment = '{}' where username = '{}';".format(payment_name, self.username)
+			cursor.execute(update_buyer)
+			connection.commit()
+
+		self.payment_window = PaymentMethods(self.order_info_dict['username'], 'checkout', None, None, self.order_info_dict)
+		self.payment_window.show()
+		self.close()
+
 class Checkout(QWidget):
 	def __init__(self, order_info_dict):
 		super(Checkout, self).__init__()
@@ -1848,14 +1932,21 @@ class Receipt(QWidget):
 		self.order_info_dict = order_info_dict
 		self.payment_name = payment_name
 
-		num_items = 5
+		num_items = sum([value for value in self.order_info_dict['items'].values()])
 
 		self.order_num_field = QLineEdit(str(self.order_info_dict['order_id']))
 		self.payment_name_field = QLineEdit(self.payment_name.title())
-		self.deliverer_field = QLineEdit('Lyubo')
+		self.deliverer_field = QLineEdit('Clio Allitto')
 		self.num_items_field = QLineEdit(str(num_items))
 		self.time_field = QLineEdit(str(self.order_info_dict['order_placed_time']))
 		self.delivery_time_field = QLineEdit(self.order_info_dict['delivery_time'])
+
+		self.order_num_field.setEnabled(False)
+		self.payment_name_field.setEnabled(False)
+		self.deliverer_field.setEnabled(False)
+		self.num_items_field.setEnabled(False)
+		self.time_field .setEnabled(False)
+		self.delivery_time_field.setEnabled(False)
 
 		groupbox1 = QGroupBox('Receipt')
 		layout1 = QFormLayout()
@@ -1872,6 +1963,7 @@ class Receipt(QWidget):
 		vbox = QVBoxLayout()
 		group_box2 = QGroupBox()
 		self.home_button = QPushButton('Home')
+		self.home_button.clicked.connect(self.go_home)
 		vbox2 = QVBoxLayout()
 		vbox2.addWidget(self.home_button)
 		group_box2.setLayout(vbox2)
@@ -1881,7 +1973,10 @@ class Receipt(QWidget):
 
 		self.setLayout(vbox)
 
-
+	def go_home(self):
+		self.buyer_func = BuyerFunctionality(self.order_info_dict['username'])
+		self.buyer_func.show()
+		self.close()
 
 class DelivererFunctionality(QWidget):
 	def __init__(self, username):
@@ -1953,8 +2048,6 @@ class DelivererAcctInfo(QWidget):
 		self.username_field = QLineEdit(self.username)
 		self.email_field = QLineEdit(user_info['email'])
 
-		self.first_name_field.setEnabled(False)
-		self.last_name_field.setEnabled(False)
 		self.username_field.setEnabled(False)
 
 		group_box1 = QGroupBox('Deliverer Information')
@@ -1999,14 +2092,38 @@ class DelivererAcctInfo(QWidget):
 		self.setGeometry(740,200,700,100)
 
 	def update_info(self):
-		email = self.email_field.text()
 
-		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
+		for field in [self.email_field.text(), self.first_name_field.text(), self.last_name_field.text()]:
+			try:
+				if len(field) == 0:
+					msg = QMessageBox()
+					msg.setIcon(QMessageBox.Information)
+					msg.setWindowTitle('Buyer Information')
+					msg.setText("Please complete all fields!")
+					msg.setStandardButtons(QMessageBox.Ok)
+					msg.exec_()
+					return
+			except:
+				pass
+
+		email = self.email_field.text()
+		fname = self.first_name_field.text().title()
+		lname = self.last_name_field.text().title()
+
+		if len(fname) < fname_min_len:
+			self.error_window = LoginMessage('first_name_length')
+			self.error_window.show()
+			return
+		elif len(lname) < lname_min_len:
+			self.error_window = LoginMessage('last_name_length')
+			self.error_window.show()
+			return
+		elif not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
 			self.error_window = LoginMessage('invalid_email')
 			self.error_window.show()
 			return
 
-		update_user = "update userr set email = '{}' where username = '{}';".format(email, self.username)
+		update_user = "update userr set first_name = '{}', last_name = '{}', email = '{}' where username = '{}';".format(fname, lname, email, self.username)
 		
 		cursor = connection.cursor()
 		cursor.execute(update_user)
@@ -2054,15 +2171,15 @@ class Assignments(QWidget):
 						(\
 						SELECT GS.store_name as 'Store Name', O.order_id as 'Order ID', O.order_placed_date as 'Date', O.order_placed_time as 'Time Order Made', O.delivery_time as 'Time of Delivery'\
 						FROM orderr O, deliveredby DB, grocerystore GS, orderfrom OFR\
-						WHERE DB.deliverer_username = 'chivalrouspotatoes' AND O.order_id = DB.order_id AND GS.store_id = OFR.store_address_id and OFR.order_id = O.order_id\
+						WHERE DB.deliverer_username = '{}' AND O.order_id = DB.order_id AND GS.store_id = OFR.store_address_id and OFR.order_id = O.order_id\
 						) A\
 						NATURAL JOIN\
 						(\
 						SELECT O.order_id as 'Order ID', sum(SI.quantity * I.listed_price) as 'Order Price', sum(SI.quantity) as 'Total Number of Items'\
 						FROM orderr O, selectitem SI, item I, deliveredby DB\
-						WHERE O.order_id = SI.order_id and SI.item_id = I.item_id and O.order_id = DB.order_id and DB.deliverer_username = 'chivalrouspotatoes'\
+						WHERE O.order_id = SI.order_id and SI.item_id = I.item_id and O.order_id = DB.order_id and DB.deliverer_username = '{}'\
 						group by O.order_id\
-						)B;"
+						)B;".format(self.username, self.username)
 
 		self.tabledata = tablemaker(self.query)
 		column_headers = self.tabledata[0]
@@ -2075,21 +2192,15 @@ class Assignments(QWidget):
 		self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
 		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
 		self.view_assn_details = QPushButton('View Assigment Details')
 
 		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
 		self.view_assn_details.clicked.connect(self.accept_view_assn_details)
 
 		button_group_box = QGroupBox()
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
 		hbox_layout.addWidget(self.view_assn_details)
 
 		button_group_box.setLayout(hbox_layout)
@@ -2111,7 +2222,7 @@ class Assignments(QWidget):
 
 		self.view_assn_details.setEnabled(False)
 		self.setLayout(vbox_layout)
-		self.setGeometry(500,100,1200,800)
+		self.setGeometry(500,100,1250,800)
 
 	def rowclicked(self):
 		self.view_assn_details.setEnabled(True)
@@ -2120,12 +2231,6 @@ class Assignments(QWidget):
 		self.deliverer_func = DelivererFunctionality(self.username)
 		self.deliverer_func.show()
 		self.close()
-
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print("NEXT")
 
 	def accept_view_assn_details(self):
 		indexes = self.table.selectionModel().selectedRows()
@@ -2314,7 +2419,7 @@ class RevenueReport(QWidget):
 		cursor.execute(store_info_query)
 		info = cursor.fetchone()
 
-		if not info:
+		if None in info.values():
 			store_info_query = "select store_name as 'Store Name: ' from manages natural join grocerystore where store_address = address_id and username = '{}';".format(self.username)
 			cursor.execute(store_info_query)
 			info = cursor.fetchone()
@@ -2360,14 +2465,15 @@ class ManagerAcctInfo(QWidget):
 		manager_info_query = "SELECT U.first_name, U.last_name, U.username, U.email, GS.store_name, CONCAT(A.house_number, ' ', A.street, ' ', A.city, ', ', A.state, ' ', A.zip_code) as 'store_address'\
 							FROM userr U, manages M, grocerystore GS, address A\
 							WHERE U.username = M.username and M.store_address = GS.address_id and GS.address_id = A.id and U.username = '{}';".format(self.username)
+		store_phone_query = "select phone from manages natural join grocerystore where address_id = store_address and username = '{}';".format(self.username)
 
-		cursor = connection.cursor()
 		cursor.execute(manager_info_query)
 		manager_info = cursor.fetchone()
+		cursor.execute(store_phone_query)
+		store_phone = int(cursor.fetchone()['phone'])
 
 		group_box = QGroupBox()
 		grid = QGridLayout()
-
 
 		self.first_name_field = QLineEdit(manager_info['first_name'])
 		self.last_name_field = QLineEdit(manager_info['last_name'])
@@ -2375,9 +2481,8 @@ class ManagerAcctInfo(QWidget):
 		self.store_field = QLineEdit(manager_info['store_name'])
 		self.store_address_field = QLineEdit(manager_info['store_address'])
 		self.email_field = QLineEdit(manager_info['email'])
+		self.store_phone_field = QLineEdit(str(store_phone))
 
-		self.first_name_field.setEnabled(False)
-		self.last_name_field.setEnabled(False)
 		self.username_field.setEnabled(False)
 		self.store_field.setEnabled(False)
 		self.store_address_field.setEnabled(False)
@@ -2392,14 +2497,17 @@ class ManagerAcctInfo(QWidget):
 
 		grid.addWidget(QLabel('Username: '), 1, 0)
 		grid.addWidget(self.username_field, 1, 1)
+		grid.addWidget(QLabel('Email: '), 1, 2)
+		grid.addWidget(self.email_field, 1, 3)
 
 		grid.addWidget(QLabel('Managed Grocery Store: '), 2, 0)
 		grid.addWidget(self.store_field, 2, 1)
 		grid.addWidget(QLabel('Grocery Store Address: '), 2, 2)
 		grid.addWidget(self.store_address_field, 2, 3)
 
-		grid.addWidget(QLabel('Email: '), 4, 0)
-		grid.addWidget(self.email_field, 4, 1)
+		grid.addWidget(QLabel('Store Phone Number: '), 3, 0)
+		grid.addWidget(self.store_phone_field, 3, 1)
+
 
 		group_box1.setLayout(grid)
 
@@ -2426,20 +2534,52 @@ class ManagerAcctInfo(QWidget):
 		vbox_layout.addWidget(group_box2)
 
 		self.setLayout(vbox_layout)
-		self.setGeometry(740,200,900,100)
+		self.setGeometry(600,150,900,100)
 
 	def update_info(self):
 		email = self.email_field.text()
+		fname = self.first_name_field.text()
+		lname = self.last_name_field.text()
+		phone = self.store_phone_field.text()
 
-		if not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
+		for field in [self.email_field.text(), self.first_name_field.text(), self.last_name_field.text(), self.store_phone_field.text()]:
+			try:
+				if len(field) == 0:
+					msg = QMessageBox()
+					msg.setIcon(QMessageBox.Information)
+					msg.setWindowTitle('Buyer Information')
+					msg.setText("Please complete all fields!")
+					msg.setStandardButtons(QMessageBox.Ok)
+					msg.exec_()
+					return
+			except:
+				pass
+
+		if len(fname) < fname_min_len:
+			self.error_window = LoginMessage('first_name_length')
+			self.error_window.show()
+			return
+		elif len(lname) < lname_min_len:
+			self.error_window = LoginMessage('last_name_length')
+			self.error_window.show()
+			return
+		elif not bool(re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', email)):
 			self.error_window = LoginMessage('invalid_email')
 			self.error_window.show()
 			return
+		elif len(phone) != 10 or not phone.isdigit():
+			self.error_window = LoginMessage('phone')
+			self.error_window.show()
+			return	
 
+		store_id_query = "select GS.store_id from grocerystore GS, manages M where GS.address_id = M.store_address and M.username = '{}';".format(self.username)
+		cursor.execute(store_id_query)
+		store_id = cursor.fetchone()['store_id']
 
-		update_user = "update userr set email = '{}' where username = '{}';".format(email, self.username)
-		
-		cursor = connection.cursor()
+		update_user = "update userr set first_name = '{}', last_name = '{}', email = '{}' where username = '{}';".format(fname, lname, email, self.username)
+		update_store_phone = "update grocerystore set phone = {} where store_id = {};".format(phone, store_id)
+
+		cursor.execute(update_store_phone)
 		cursor.execute(update_user)
 		connection.commit()
 
@@ -2493,21 +2633,15 @@ class Inventory(QWidget):
 		self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
 		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
 		self.view_item = QPushButton('View Item')
 
 		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
 		self.view_item.clicked.connect(self.accept_view_item)
 
 		button_group_box = QGroupBox()
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
 		hbox_layout.addWidget(self.view_item)
 
 		button_group_box.setLayout(hbox_layout)
@@ -2540,12 +2674,6 @@ class Inventory(QWidget):
 		self.mgr_func.show()
 		self.close()
 
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print("NEXT")
-
 	def accept_view_item(self):
 		indexes = self.table.selectionModel().selectedRows()
 		for index in indexes:
@@ -2564,22 +2692,7 @@ class ViewItem(QWidget):
 		group_box = QGroupBox()
 		layout = QFormLayout()
 
-		name =  QLineEdit()
-		description = QLineEdit(self.item_info[1])
-		quantity = QLineEdit(self.item_info[2])
-		retail = QLineEdit( self.item_info[3])
-		wholesale = QLineEdit(self.item_info[4])
-		exp = QLineEdit(self.item_info[5])
-
-		name.setEnabled(False)
-		description.setEnabled(False)
-		quantity.setEnabled(False)
-		retail.setEnabled(False)
-		wholesale.setEnabled(False)
-		exp.setEnabled(False)
-
-
-		layout.addRow(QLabel('Item Name: '),QLabel(self.item_info[0]))
+		layout.addRow(QLabel('Item Name: '),QLabel(self.item_info[0].title()))
 		layout.addRow(QLabel('Description: '), QLabel(self.item_info[1]))
 		layout.addRow(QLabel('Quantity: '), QLabel(self.item_info[2]))
 		layout.addRow(QLabel('Retail Price: '), QLabel(self.item_info[3]))
@@ -2628,19 +2741,13 @@ class OutstandingOrders(QWidget):
 		self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
 		self.back = QPushButton('Back')
-		self.previous = QPushButton('Previous')
-		self.next = QPushButton('Next')
 
 		self.back.clicked.connect(self.accept_back)
-		self.previous.clicked.connect(self.accept_prev)
-		self.next.clicked.connect(self.accept_next)
 
 		button_group_box = QGroupBox()
 		hbox_layout = QHBoxLayout()
 
 		hbox_layout.addWidget(self.back)
-		hbox_layout.addWidget(self.previous)
-		hbox_layout.addWidget(self.next)
 
 		button_group_box.setLayout(hbox_layout)
 
@@ -2664,12 +2771,6 @@ class OutstandingOrders(QWidget):
 		self.mgr_func = ManagerFunctionality(self.username)
 		self.mgr_func.show()
 		self.close()
-
-	def accept_prev(self):
-		print('PREVIOUS')
-
-	def accept_next(self):
-		print("NEXT")
 
 def tablemaker(query):
 	cursor = connection.cursor()
