@@ -61,8 +61,8 @@ class Login(QWidget):
 		self.setWindowIcon(QIcon('groceries.png'))
 		self.setWindowTitle('Login')
 
-		self.username_field = QLineEdit('wellmadeconkey')
-		self.password_field = QLineEdit('cordialsamarium')
+		self.username_field = QLineEdit('')
+		self.password_field = QLineEdit('')
 
 		form_group_box = QGroupBox('User Login')
 
@@ -242,13 +242,13 @@ class NewBuyer(QWidget):
 		self.preferred_acct_num_field = QLineEdit()
 		self.preferred_routing_num_field = QLineEdit()
 
-		store_query = "select address_id,store_name, concat(house_number, ' ', street) as 'address' from grocerystore natural join address where address_id = id;"
+		store_query = "select store_id,store_name, concat(house_number, ' ', street) as 'address' from grocerystore natural join address where address_id = id;"
 		cursor.execute(store_query)
 		store_data = cursor.fetchall()
 		store_list = [entry['store_name'] + ' - ' + entry['address'] for entry in store_data]
 		store_list.insert(0,'Select a preferred store')
 
-		self.store_dict = {str(str(store['store_name']) + ' - ' + str(store['address'])) : store['address_id'] for store in store_data}
+		self.store_dict = {str(str(store['store_name']) + ' - ' + str(store['address'])) : store['store_id'] for store in store_data}
 
 		self.default_store_field = QComboBox()
 		self.default_store_field.addItems(store_list)
@@ -320,7 +320,6 @@ class NewBuyer(QWidget):
 		preferred_acct_num = self.preferred_acct_num_field.text()
 		preferred_routing_num = self.preferred_routing_num_field.text()
 
-		self.street = 'street'
 
 		try:
 			address_split = address_raw.split()
@@ -1155,12 +1154,13 @@ class Cart(QWidget):
 
 		rows = []
 		column_headers = ['Item Name', 'Description', 'Quantity', 'Price']
+		self.total_items = 0
 
 		for item in self.order_info_dict['items']:
+			self.total_items += int(self.order_info_dict['items'][item])
 			row = [item, self.order_info_dict['description'][item], str(self.order_info_dict['items'][item]), '$' + str(self.order_info_dict['price'][item])]
 			rows.append(row)
 
-		self.total_items = len(rows)
 
 		if self.total_items == 0:
 			rows = [['No items in cart.']]
@@ -1555,8 +1555,6 @@ class PaymentMethods(QWidget):
 		self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
 		self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
-		self.table.clicked.connect(self.rowclicked)
-
 		self.table.setHorizontalHeaderLabels(column_headers)
 		for i, row in enumerate(rows):
 		    for j, field in enumerate(row):
@@ -1575,6 +1573,7 @@ class PaymentMethods(QWidget):
 		hbox_layout.addWidget(self.diff_payment)
 
 		if self.parent_type == 'checkout':
+			self.table.clicked.connect(self.rowclicked)
 			self.confirm_order = QPushButton('Confirm Payment Method')
 			self.confirm_order.setEnabled(False)
 			self.confirm_order.clicked.connect(self.accept_confirm)
@@ -1634,16 +1633,16 @@ class PaymentMethods(QWidget):
 		order_placed_time = self.order_info_dict['order_placed_time']
 		deliverer_username = self.order_info_dict['deliverer_username']
 		is_delivered = 0
-		delivery_date = self.order_info_dict['delivery_date']
+		delivery_date = None
 		items = self.order_info_dict['items']
 
 		create_order = "INSERT into orderr values('{}', '{}', '{}', '{}', '{}');".format(order_id, delivery_instructions, delivery_time, order_placed_date, order_placed_time)
 		create_orderedby = "INSERT into orderedby values('{}', '{}');".format(order_id, username)
-		create_deliveredby = "INSERT into deliveredby values ('{}', '{}', '{}', '{}', '{}');".format(order_id, deliverer_username, is_delivered, delivery_time, delivery_date)
+		create_deliveredby = "INSERT into deliveredby values (%s, %s, %s, %s, %s);"
 		create_orderfrom = "INSERT into orderfrom values ({}, {});".format(store_id, order_id)
 		cursor.execute(create_order)
 		cursor.execute(create_orderedby)
-		cursor.execute(create_deliveredby)
+		cursor.execute(create_deliveredby, (order_id, deliverer_username, is_delivered, delivery_time, delivery_date))
 		connection.commit()
 		cursor.execute(create_orderfrom)
 
@@ -2249,21 +2248,23 @@ class AssignmentDetails(QWidget):
 		self.username = username
 		self.order_id = order_id
 
-		assignment_query = "SQL QUERY"
-		status_query = "STATUS QUERY"
-		status = 'Delivered'
-
-		delivery_query = "SELECT O.order_placed_time as 'Order Placed', O.delivery_time as 'Delivery Time', IF(DB.is_delivered = 1, 'Delivered', 'Pending') as 'Status', CONCAT(A.house_number, ' ', A.street, ' ', A.city, ', ', A.state,' ', A.zip_code) as 'Buyer Address', GS.store_name as 'Store Name' FROM orderr O, orderfrom OFR, grocerystore GS, address A, orderedby OB, buyer B, deliveredBy DB WHERE O.order_id = OFR.order_id and OFR.store_address_id = GS.store_id and O.order_id = OB.order_id and OB.buyer_username = B.username and B.address_id = A.id and O.order_id = DB.order_id and O.order_id = 13075;"
+		delivery_query = "SELECT O.order_placed_time as 'Order Placed', O.delivery_time as 'Delivery Time', DB.is_delivered as 'status', CONCAT(A.house_number, ' ', A.street, ' ', A.city, ', ', A.state,' ', A.zip_code) as 'Buyer Address', GS.store_name as 'Store Name' FROM orderr O, orderfrom OFR, grocerystore GS, address A, orderedby OB, buyer B, deliveredBy DB WHERE O.order_id = OFR.order_id and OFR.store_address_id = GS.store_id and O.order_id = OB.order_id and OB.buyer_username = B.username and B.address_id = A.id and O.order_id = DB.order_id and O.order_id = 13075;"
 		cursor.execute(delivery_query)
 		delivery_data = cursor.fetchone()
 
 		status_options = ['Pending', 'Delivered']
+		current_status = delivery_data['status']
+
+		if current_status == 0:
+			current_status = 'Pending'
+		else:
+			current_status = 'Delivered'
 
 		self.order_placed_field = QLineEdit(delivery_data['Order Placed'])
 		self.delivery_time_field = QLineEdit(delivery_data['Delivery Time'])
 		self.status_field = QComboBox()
 		self.status_field.addItems(status_options)
-		self.status_field.setCurrentIndex({status: index for index, status in enumerate(status_options)}[delivery_data['Status']])
+		self.status_field.setCurrentIndex({status: index for index, status in enumerate(status_options)}[current_status])
 		self.buyer_address_field = QLineEdit(delivery_data['Buyer Address'])
 		self.store_name_field = QLineEdit(delivery_data['Store Name'])
 
@@ -2316,7 +2317,7 @@ class AssignmentDetails(QWidget):
 		grid_layout.addWidget(back_button, 1, 0)
 		grid_layout.addWidget(self.update_button, 1, 1)
 
-		self.current_status = delivery_data['Status']
+		self.current_status = current_status
 
 		self.status_field.currentIndexChanged.connect(self.changed_status)
 
@@ -2335,8 +2336,8 @@ class AssignmentDetails(QWidget):
 		status = self.status_field.currentText()
 		if status == 'Delivered':
 			new_status = 1
-			time = datetime.datetime.now().strftime("%H:%M")
-			date = datetime.datetime.now().strftime("%Y-%m-%d")
+			time = dt.datetime.now().strftime("%H:%M")
+			date = dt.datetime.now().strftime("%Y-%m-%d")
 			update_status_query = "update deliveredBy set is_delivered = {}, delivery_time = '{}', delivery_date = '{}' where deliverer_username = '{}' and order_id = {}".format(new_status, time, date, self.username, self.order_id)
 		if status == 'Pending':
 			new_status = 0
@@ -2626,6 +2627,13 @@ class Inventory(QWidget):
 		column_headers = self.tabledata[0]
 		self.rows = self.tabledata[1]
 
+		total_items = 0
+		for row in self.rows:
+			total_items += int(row[2])
+
+		total_item_label = QLabel('Total Items: {}'.format(total_items))
+
+
 		self.table = QTableWidget(len(self.rows), len(self.rows[0]), self)
 		self.table.horizontalHeader().setStretchLastSection(True)
 		self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -2658,6 +2666,7 @@ class Inventory(QWidget):
 		        self.table.setItem(i, j, item)
 
 		vbox_layout = QVBoxLayout()
+		vbox_layout.addWidget(total_item_label)
 		vbox_layout.addWidget(self.table)
 		vbox_layout.addWidget(button_group_box)
 
